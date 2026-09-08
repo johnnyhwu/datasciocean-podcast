@@ -1,0 +1,15 @@
+[project]
+name = "datasciocean-podcast"
+version = "0.1.0"
+description = "Blog article -> podcast production pipeline"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "mlx-audio>=0.5.1",
+    "opencc-python-reimplemented>=0.1.7",
+    "requests>=2.34.2",
+    "sentencepiece>=0.2.2",
+    "soundfile>=0.14.0",
+]
+
+[tool.uv]
+package = false
