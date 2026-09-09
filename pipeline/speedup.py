@@ -18,6 +18,9 @@ import numpy as np
 import soundfile as sf
 from scipy.signal import correlate
 
+sys.path.insert(0, str(Path(__file__).parent))
+from master import integrated_lufs, limit_true_peak   # 峰值判準只有一份
+
 FRAME = 1024      # 24kHz 下約 43ms,語音 WSOLA 的常用尺度
 TOL = 256         # 搜尋半徑約 10ms
 
@@ -71,12 +74,14 @@ def main():
     print(f"原檔 {src.name}  {len(x)/sr/60:.1f} 分鐘  {sr} Hz\n")
     for r in rates:
         y = wsola(x, r)
-        peak = np.max(np.abs(y))
-        if peak > 0.999:                       # 疊加後偶爾會頂到,壓回來
-            y = y * (0.999 / peak)
+        # 疊加後偶爾會頂到。用 master.py 的 true peak 判準,不要只看樣本最大值 ——
+        # 取樣點之間的波形會更高,壓成 AAC 時才會冒出來。
+        y, tp, cut = limit_true_peak(y, sr)
         dst = src.with_name(f"{src.stem}_x{r:g}.wav")
-        sf.write(str(dst), y, sr)
-        print(f"  x{r:g}  {len(y)/sr/60:5.1f} 分鐘  (實際 {len(x)/len(y):.3f} 倍)  -> {dst.name}")
+        sf.write(str(dst), y, sr, subtype=sf.info(str(src)).subtype)
+        note = f"  (削 {cut:.2f} dB)" if cut < 0 else ""
+        print(f"  x{r:g}  {len(y)/sr/60:5.1f} 分鐘  (實際 {len(x)/len(y):.3f} 倍)  "
+              f"{integrated_lufs(y, sr):.2f} LUFS  {tp:+.2f} dBTP{note}  -> {dst.name}")
 
 
 if __name__ == "__main__":

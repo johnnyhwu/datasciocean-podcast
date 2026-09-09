@@ -1,0 +1,24 @@
+{
+  "number": 3,
+  "article": "mem0",
+  "zh": {
+    "title": "複雜的版本反而輸了 —— Mem0 與 AI Agent 的長期記憶",
+    "summary": "同一個團隊做了兩個版本,一個簡單、一個用知識圖譜。照理說複雜的那個應該比較強,結果四類問題裡它輸了兩類 —— 而論文對這件事,一句解釋都沒有。這集我們把 Mem0 的記憶管理拆開來看,它其實只有四個動作;最後再回頭看那個沒被解釋的結果,講講我自己的猜測。",
+    "bullets": [
+      "為什麼 AI Agent 會忘記事情,以及「把記憶體開大一點」為什麼治不好這個病",
+      "Mem0 的記憶管理只有四個動作,簡單到你聽完就能用在自己的專案上",
+      "這篇論文真正證明的東西,跟它標題宣稱的不太一樣",
+      "知識圖譜版本反而在 multi-hop 問題上輸了 —— 論文沒解釋,我講講我的猜測"
+    ]
+  },
+  "en": {
+    "title": "The complex version lost — Mem0 and long-term memory for AI agents",
+    "summary": "One team, two versions: a simple one and one built on a knowledge graph. The complex one should have won. It lost two of four question types — and the paper never explains why. We take Mem0's memory management apart (it's only four operations), then come back to that unexplained result and I'll tell you what I think happened.",
+    "bullets": [
+      "Why AI agents forget, and why \"just use a bigger context window\" doesn't fix it",
+      "Mem0's memory management is four operations — simple enough to use on your own project today",
+      "What the paper actually proves isn't quite what the title claims",
+      "The knowledge-graph version loses on multi-hop questions. The paper doesn't say why; I'll give you my guess"
+    ]
+  }
+}

@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from verify import detect_lang   # 語言判準只有一份,避免兩支腳本各判各的
+from brand import AUDIO_DISCLOSURE, AUDIO_DISCLOSURE_SUGGESTED
 
 ROLES = {"hook", "identity", "promise", "signpost", "context", "mechanism",
          "analogy", "evidence", "turn", "recap", "critique", "opinion",
@@ -105,6 +106,29 @@ def check(items, lang):
                      f"Gemini 可能回空音訊 —— tts.py 會自動降級提示因應,"
                      f"通常不用處理:{', '.join(thin[:6])}"
                      + (" ..." if len(thin) > 6 else ""))
+
+    # 開場四段是固定結構:hook -> identity -> promise -> roadmap。
+    # b02 / b03 很容易在改稿時被吃掉,而它們正是「要不要投資 30 分鐘」
+    # 這個決定的依據,所以列為硬性錯誤。
+    opening = [x.get("role") for x in items[:4]]
+    if opening != ["hook", "identity", "promise", "signpost"]:
+        errs.append(f"開場四段的 role 應為 hook/identity/promise/signpost,"
+                    f"實際是 {'/'.join(str(r) for r in opening)}")
+
+    # AI 揭露。Apple Podcasts 第 1.11 條要求音訊內與 metadata 兩處都要有,
+    # 漏掉可能整集下架。開場白每集由 TTS 重新生成,措辭可以跟當集主題呼應,
+    # 但「聲音是 AI 合成」這個事實不能不見 —— 所以驗事實不驗逐字。
+    ident = [x for x in items if x.get("role") == "identity"]
+    if not any(AUDIO_DISCLOSURE[lang].search(x["text"]) for x in ident):
+        errs.append("identity beat 缺 AI 揭露(Apple Podcasts 1.11)。"
+                    f"建議措辭:{AUDIO_DISCLOSURE_SUGGESTED[lang]}")
+
+    # 章節標記給 show notes 的時間戳用。標在 signpost 上,聽眾看得懂的說法,
+    # 不要用 beat 欄位那種內部描述(「路標 — 第一站」對聽眾沒有意義)。
+    ch = [x for x in items if x.get("chapter")]
+    if len(ch) < 4:
+        warns.append(f"只有 {len(ch)} 個 chapter 標記,show notes 的章節會太少;"
+                     f"在主要的 signpost 段加 \"chapter\" 欄位(建議 6-10 個)")
 
     c = collections.Counter(x["role"] for x in items)
     L = [len(x["text"]) for x in items]

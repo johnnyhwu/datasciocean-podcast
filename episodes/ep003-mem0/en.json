@@ -3,6 +3,7 @@
     "id": "b00_hook",
     "role": "hook",
     "beat": "hook — the complex version loses to the simple one",
+    "chapter": "The complex version lost",
     "style": "Speak in a neutral American accent, like the host of a tech podcast. Sound curious, a little puzzled, like you're laying out a riddle.",
     "text": "A research team built two versions of the same system. The second version added a knowledge graph. It was far more complex to build, and far more expensive to run. Then they tested both on four kinds of question. Here is what came back. The complicated version lost to the simple one on two of the four. And the explanation the paper gives for that result is — there isn't one. They put the numbers on the page, and moved on."
   },
@@ -31,6 +32,7 @@
     "id": "b04_sp1",
     "role": "signpost",
     "beat": "signpost — stop one",
+    "chapter": "Why AI agents forget things",
     "style": "Speak in a neutral American accent, like the host of a tech podcast. Sound crisp and brisk, like you're planting a signpost.",
     "text": "Let's start at stop one. What is the problem, exactly?"
   },
@@ -66,6 +68,7 @@
     "id": "b09_sp2",
     "role": "signpost",
     "beat": "signpost — stop two",
+    "chapter": "Why a bigger context window doesn't fix it",
     "style": "Speak in a neutral American accent, like the host of a tech podcast. Sound crisp and brisk, like you're planting a signpost.",
     "text": "Stop two. Let's look at the fix most people reach for first, and why it doesn't work."
   },
@@ -122,6 +125,7 @@
     "id": "b16_sp3",
     "role": "signpost",
     "beat": "signpost — stop three",
+    "chapter": "How Mem0 remembers: just four operations",
     "style": "Speak in a neutral American accent, like the host of a tech podcast. Sound crisp and brisk, like you're planting a signpost.",
     "text": "That's what stop three answers. The whole Mem zero design is an answer to those three questions."
   },
@@ -213,6 +217,7 @@
     "id": "b27_sp4",
     "role": "signpost",
     "beat": "signpost — stop four",
+    "chapter": "The version with a knowledge graph",
     "style": "Speak in a neutral American accent, like the host of a tech podcast. Sound crisp and brisk, like you're planting a signpost.",
     "text": "That's stop four. Let's look at the version with the knowledge graph."
   },
@@ -297,6 +302,7 @@
     "id": "b37_sp5",
     "role": "signpost",
     "beat": "signpost — stop five",
+    "chapter": "How they tested it, and what came out",
     "style": "Speak in a neutral American accent, like the host of a tech podcast. Sound crisp and brisk, like you're planting a signpost.",
     "text": "Last stop. The experiments. First how they measured, then what they measured."
   },
@@ -423,6 +429,7 @@
     "id": "b54_sp7",
     "role": "signpost",
     "beat": "signpost — critique",
+    "chapter": "Where I think this paper falls short",
     "style": "Speak in a neutral American accent, like the host of a tech podcast. Sound crisp and brisk, like you're planting a signpost.",
     "text": "That's the results. Now let's talk about what's wrong with this paper."
   },
@@ -451,6 +458,7 @@
     "id": "b58_sp8",
     "role": "signpost",
     "beat": "signpost — bring it home",
+    "chapter": "So what did we actually learn",
     "style": "Speak in a neutral American accent, like the host of a tech podcast. Sound crisp and brisk, like you're planting a signpost.",
     "text": "Alright. Let's bring it home."
   },

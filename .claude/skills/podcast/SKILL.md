@@ -80,10 +80,53 @@ out/<slug>/zh/            out/<slug>/en/
 中文約 300 字元 / 分鐘(30 分鐘 ≈ 9,000 字元),
 英文約 850 字元 / 分鐘(30 分鐘 ≈ 26,000 字元)。兩者都是 65-70 個 beat。
 
-### 開場必備
+### 開場的固定結構(validate.py 會擋)
 
-`hook`(不劇透)→ `identity`(含 AI 揭露)→ `promise`(聽完會學到什麼)
-→ 路線圖(`signpost`)。細節看 NARRATION.md。
+前四段的 role 必須是 `hook` → `identity` → `promise` → `signpost`:
+
+| id | role | 固定 or 每集不同 |
+|---|---|---|
+| `b00_hook` | `hook` | 每集不同,不劇透 |
+| `b01_identity` | `identity` | **前半固定**(節目名 + AI 揭露)+ 後半每集不同(主題預告) |
+| `b02_promise` | `promise` | 每集不同,聽完會拿到哪 2-3 樣東西 |
+| `b03_roadmap` | `signpost` | 每集不同,這集會走幾站 |
+
+**b02 和 b03 很容易在改稿時被吃掉**,但它們正是聽眾決定「要不要投資
+30 分鐘」的依據,所以列為硬性錯誤。細節看 NARRATION.md 第一節。
+
+### ⚠️ AI 揭露是硬性合規要求
+
+Apple Podcasts 第 1.11 條:AI 生成的音訊必須在**內容本身**與 **metadata**
+兩處揭露,漏掉可能整集下架。開場白每集由 TTS 重新生成(不用固定音檔 ——
+b01 的固定半句與變動半句在同一句裡,拆開接會有聽得出來的接縫),
+所以措辭可以跟當集主題呼應,但「聲音是 AI 合成」這個事實不能不見。
+
+建議措辭在 `pipeline/brand.py` 的 `AUDIO_DISCLOSURE_SUGGESTED`:
+
+> 這個節目的聲音是 AI 合成的,內容改編自我自己讀論文寫的筆記。
+
+**揭露到語音為止就好。** 1.11 管的是「聽眾以為在聽真人」,不管來源素材
+怎麼寫的。論文是 Johnny 自己讀的,筆記是他跟 AI 共同撰寫並掛名發表的
+—— 那就是他的筆記,寫作過程不在揭露範圍,**不要主動加上去**。
+
+但要用「改編**自**我的筆記」,不要寫成「內容**就是**我的筆記」:
+在 podcast 的語境裡「內容」會被聽成「這一集」,而這集的逐字稿確實是
+從筆記改寫來的。
+
+### chapter 欄位
+
+在主要的 `signpost` 段加 `"chapter": "<章節名>"`,建議 6-10 個,
+`shownotes.py` 會配上時間戳。中英兩版標記的段落要一對一對齊。
+
+章節標題的寫法:
+
+- **不要用 `beat` 欄位那種內部描述**(「路標 — 第一站」對聽眾沒有意義)
+- **不要帶「第一站 / 第二站」前綴。** 那是講稿裡的敘事裝置,聽眾在音訊裡
+  會聽到;寫在 show notes 上只是把最珍貴的前幾個字吃掉 —— podcast app
+  的列表會截斷標題
+- **寫成人話。** 「收束」「總結」「結語」這種書面語台灣人不會講,
+  改成「所以,我們到底學到了什麼」。最後一章尤其容易寫成術語
+- 用問句或懸念比用名詞好:「加上知識圖譜的那個版本」勝過「進階架構」
 
 ### ⚠️ 最容易犯的錯
 
@@ -93,7 +136,8 @@ out/<slug>/zh/            out/<slug>/en/
 
 ## 步驟 4:寫英文版 `episodes/<slug>/en.json`
 
-**骨架沿用、內容重寫。** `id` / `role` / `beat` 跟中文版一對一對齊,
+**骨架沿用、內容重寫。** `id` / `role` / `beat` / `chapter` 跟中文版
+一對一對齊(`chapter` 的文字要翻成英文,標記的段落必須相同),
 `text` 重寫不翻譯,`style` 換英文骨幹。
 為什麼、以及要換掉哪些東西(文化性類比、中文詞義解釋),見 NARRATION.md 第十節。
 
@@ -147,18 +191,64 @@ uv run python pipeline/verify.py out/<slug>/zh
 `uv run python pipeline/rescore.py <out_dir> --write` 重算,不要重跑 STT;
 並且**順手 rescore 另一個語言那版**,確認新規則沒把它弄壞。
 
-## 步驟 8:拼接與輸出(兩版都要)
+## 步驟 8:拼接、正規化與輸出(兩版都要)
 
 ```bash
-uv run python pipeline/stitch.py out/<slug>/zh
-uv run python pipeline/speedup.py out/<slug>/zh/FULL_EPISODE.wav 1.1 1.2 1.3 1.4 1.5
+uv run python pipeline/stitch.py  out/<slug>/zh
+uv run python pipeline/master.py  out/<slug>/zh/FULL_EPISODE.wav
+uv run python pipeline/speedup.py out/<slug>/zh/FULL_EPISODE_norm.wav 1.1 1.2 1.3 1.4 1.5
 ```
 
+**順序不能換。** 正規化要在變速之前:`speedup.py` 會拿 `master.py` 的
+true peak 判準做限幅,先正規化才有正確的基準。
+
+`master.py` 把整集推到 **-19 LUFS**(單聲道標準;-16 是立體聲的值),
+true peak 壓在 **-1 dBTP** 以下 —— 留這 1 dB 是因為取樣點之間的波形會更高,
+壓成 AAC 時會冒出來。加 `--measure` 可以只量不改。
+
+**中英兩版都要跑**,而且兩版量出來的原始響度會不一樣
+(ep003:中文 -15.4、英文 -16.9),不正規化的話聽眾切換版本會感覺到音量跳動。
+
+日後加了片頭音樂 / BGM,**對混完的成品再跑一次 master.py 就好**,腳本不用改。
+
 產出:
-- `FULL_EPISODE.wav` —— 原速
-- `FULL_EPISODE_x1.1` ~ `x1.5` —— 五個加速版本(WSOLA,音高不變)
+- `FULL_EPISODE.wav` —— 拼接後、正規化前
+- `FULL_EPISODE_norm.wav` —— 正規化後的原速母帶
+- `FULL_EPISODE_norm_x1.1` ~ `x1.5` —— 五個加速版本(WSOLA,音高不變)
 - `TIMELINE.md` —— 時間軸,可跳段
 - `report.json` —— 每段的驗證結果
+
+### 已知現象:Gemini 的輸出本來就觸頂
+
+TTS 回傳的 PCM16 有少量樣本頂在滿刻度(ep003 中文版 69 段裡有 53 段,
+合計 3,158 個樣本,佔 0.007%)。**這是 TTS 來源就有的,修不掉**,
+量太小聽不出來,而且正規化是往下降,不會惡化。不用為此重錄。
+
+## 步驟 9:show notes(兩版都要)
+
+先寫 `episodes/<slug>/meta.json`(中英各一份標題、摘要、3-5 個重點,
+外加 `article` 指向部落格的文章目錄名):
+
+```bash
+uv run python pipeline/shownotes.py out/<slug>/zh
+uv run python pipeline/shownotes.py out/<slug>/en
+```
+
+產出 `SHOWNOTES.md`,含章節時間戳(與 `stitch.py` 共用停頓規則,所以
+對得上音檔)、原文連結、固定的 metadata 揭露文字。
+
+**標題規則**(plan.md 第九章):沿用部落格的標題風格,有動詞、有懸念,
+**論文名放後半** —— podcast app 的列表會截斷,前幾個字最珍貴。
+不要退化成「第 5 集:某某論文解讀」。
+
+原文連結由 `brand.py` 依語言組出來:
+
+```
+中文  https://datasciocean.com/paper-intro/<article>/
+英文  https://datasciocean.com/en/paper-intro/<article>/
+```
+
+這支腳本是**發布前的最後一道 gate**,音訊揭露不在就不產出檔案。
 
 ## 交付時要告訴使用者
 
@@ -172,5 +262,5 @@ uv run python pipeline/speedup.py out/<slug>/zh/FULL_EPISODE.wav 1.1 1.2 1.3 1.4
 
 ## 已知還沒做的事
 
-片頭片尾音效、BGM、封面、RSS 發布、show notes。
+片頭片尾音效、BGM、封面、RSS 發布。
 規劃在 `docs/plan.md` 第六、七、九章。使用者知道,不用主動補。

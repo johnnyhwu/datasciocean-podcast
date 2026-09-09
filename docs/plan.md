@@ -13,9 +13,9 @@
 > | 二、Pipeline 總覽 | ✅ 已實作;**檔案結構那節已過時**,以 CLAUDE.md 的目錄為準 |
 > | 三、腳本生成 | ✅ 已實作;實際判準以 `reference/NARRATION.md` 為準,它比這章具體得多 |
 > | 四、TTS 語音合成 | ✅ 已定案(Gemini + Zubenelgenubi);選型過程見 `RESEARCH-HISTORY.md` |
-> | 五、音訊後製 | 拼接與停頓 ✅ 已實作;**5.2 音量正規化(LUFS)尚未做** —— 而且那裡寫的 ffmpeg 指令不能用,本專案刻意不裝 ffmpeg,得改用 numpy 實作 |
-> | 六、品牌素材 | ⬜ **待做** —— 片頭音樂、開場片尾說辭、封面 |
-> | 七、發布與合規 | ⬜ **待做** —— RSS、show notes、版權音樂(AI 揭露已在 `identity` beat 實作) |
+> | 五、音訊後製 | ✅ 已實作。**5.2 的 ffmpeg 指令不能用**(本專案不裝 ffmpeg),已改由 `pipeline/master.py` 用 numpy + scipy 實作完整的 BS.1770-4;目標改為 **-19 LUFS 單聲道**(5.2 寫的 -16 是立體聲的值) |
+> | 六、品牌素材 | ⬜ **待做** —— 片頭音樂、封面。**6.2「固定開場白錄一次重複使用」已否決**:b01 的固定半句與變動半句在同一句裡,拆開會留下接縫,改為每集 TTS 重新生成 |
+> | 七、發布與合規 | 部分完成。**7.3 AI 揭露 ✅** —— 音訊端在 `identity` beat,metadata 端在 `shownotes.py`,兩處都有自動 gate(`validate.py` 在合成前擋、`shownotes.py` 在發布前擋)。**7.4 show notes ✅** —— `pipeline/shownotes.py`,章節時間戳與 `stitch.py` 共用停頓規則。**7.1 上架、7.2 RSS、7.5 版權音樂 ⬜ 待做** |
 > | 八、英文版 | ✅ 已實作,但 **8.2 的機制與實作不同**:實際做法是中文版先寫完,英文版沿用 `id`/`role`/`beat` 骨架、逐字稿重寫(不是從語言中立的 beats 各自渲染)。避免翻譯腔的結論仍然對。**8.1「必須是兩個獨立 RSS feed」仍然有效,發布時是硬性限制** |
 > | 九、上線路徑 | ⬜ **待做** |
 > | 十、待辦與待決事項 | 部分已解決,對照 `RESEARCH-HISTORY.md` 看 |

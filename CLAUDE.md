@@ -6,7 +6,8 @@
 ## 一句話流程
 
 文章 → beats.json(結構化逐字稿)→ Gemini TTS 逐段合成 →
-Whisper 回轉驗證 → 拼接加停頓 → 輸出原速 + 5 個加速版本。
+Whisper 回轉驗證 → 拼接加停頓 → 音量正規化 →
+輸出原速 + 5 個加速版本 → show notes。
 中英兩版各走一次,**兩版都要驗證**。
 
 **要做一集時,直接呼叫 `podcast` skill。** 它有完整的步驟與判準。
@@ -38,18 +39,22 @@ Whisper 回轉驗證 → 拼接加停頓 → 輸出原速 + 5 個加速版本。
 ## 目錄
 
 ```
-pipeline/                 六支腳本,就是整條流程
+pipeline/                 九支檔案,就是整條流程
   validate.py             beats.json 結構檢查(合成前擋錯)
   tts.py                  Gemini TTS 合成
   verify.py               Whisper 回轉驗證(中英文各一套門檻,自動判斷語言)
   rescore.py              改了正規化規則後重算分數,不必重跑 STT
   stitch.py               拼接 + 依 role 加停頓
+  master.py               音量正規化(BS.1770-4 LUFS + true peak,純 numpy)
+  shownotes.py            show notes + 發布前的 AI 揭露 gate
+  brand.py                節目固定字串(名稱、網址、揭露措辭)
   speedup.py              產生加速版本(WSOLA,不改音高)
 reference/                寫稿與調校的判準,寫稿前必讀
   NARRATION.md            怎麼寫給只能用聽的聽眾(第十節:英文版)
   NORMALIZATION.md        哪些要改寫、哪些不要
   GEMINI-TTS.md           TTS 實測結論與已知陷阱
 episodes/<slug>/          一集一個目錄,中英兩份 spec 放在一起
+  meta.json               集數層級的發布資訊(標題、摘要、重點、對應文章 slug)
   zh.json  en.json        ep003-mem0/zh.json 是參考範例。它的 validate 會回一個
                           ✗(b22b_sp 與 b23_four_ops 重複句)—— 這是真的缺陷,
                           使用者決定這集不重錄,而音檔已依現稿生成,
@@ -94,7 +99,27 @@ archive/                  Johnny 的錄音(gitignore,克隆已放棄,留著備�
 - 花錢的操作(TTS API)先講清楚預估成本再跑。
   一集中文約 US$0.01,英文約 US$0.03。
 
+## 開場的固定結構
+
+前四段是固定骨架,`validate.py` 會擋:
+
+```
+b00_hook      hook      鉤子,不劇透
+b01_identity  identity  節目名 + AI 揭露(固定)+ 這集主題預告(每集不同)
+b02_promise   promise   這集能學到什麼
+b03_roadmap   signpost  路線圖
+b04 之後                正文
+```
+
+**開場白每集由 TTS 重新生成,不用固定音檔。** b01 的固定半句與變動半句
+在同一句話裡,拆成兩個 beat 去接會留下聽得出來的接縫。品牌識別靠片頭音樂
+(那才是固定音檔),人聲的韻律微差聽眾不會註冊成「不同節目」。
+
+代價是揭露句可能漂移,所以 `validate.py` 與 `shownotes.py` 兩處都驗
+—— 措辭可以跟當集主題呼應,但「聲音是 AI 合成」這個事實不能不見。
+Apple Podcasts 第 1.11 條,漏掉可能整集下架。
+
 ## 還沒做的部分
 
-片頭片尾音效、BGM、封面、RSS 發布、show notes。
+片頭片尾音效、BGM、封面、RSS 發布。
 規劃在 `docs/plan.md` 第六、七、九章,尚未實作。
