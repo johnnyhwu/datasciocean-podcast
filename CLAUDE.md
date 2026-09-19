@@ -6,9 +6,12 @@
 ## 一句話流程
 
 文章 → beats.json(結構化逐字稿)→ Gemini TTS 逐段合成 →
-Whisper 回轉驗證 → 拼接加停頓 → 混入片頭/章節轉場/片尾 + 音量正規化 →
-輸出原速 + 5 個加速版本 → show notes。
+Whisper 回轉驗證 → 拼接加停頓 → 人聲加速到 1.1x →
+混入片頭/章節轉場/片尾 + 音量正規化 → show notes。
 中英兩版各走一次,**兩版都要驗證**。
+
+**交付速度固定 1.1x**(`brand.py` 的 `SHIP_RATE`)—— TTS 原速偏慢,
+只加速人聲,音樂原速。1.0 那份是存檔母帶,不是交付物。
 
 **要做一集時,直接呼叫 `podcast` skill。** 它有完整的步驟與判準。
 
@@ -46,11 +49,11 @@ pipeline/                 十支檔案,就是整條流程
   rescore.py              改了正規化規則後重算分數,不必重跑 STT
   stitch.py               拼接 + 依 role 加停頓
   assemble.py             混音:人聲 + 片頭 + 章節轉場 + 片尾,順便正規化。
-                          `--rate` 產生加速版本 —— 加速要在混音前做,
+                          `--rate` 預設就是交付速度 1.1x —— 加速要在混音前做,
                           只拉伸人聲,音樂保持原速
   master.py               音量正規化(BS.1770-4 LUFS + true peak,純 numpy)
   shownotes.py            show notes + 發布前的 AI 揭露 gate
-  brand.py                節目固定字串(名稱、網址、揭露措辭)
+  brand.py                節目固定字串(名稱、網址、揭露措辭、交付速度)
   speedup.py              WSOLA 實作(不改音高)。assemble.py 會 import 它;
                           單獨執行是對已完成的音檔做加速
 reference/                寫稿與調校的判準,寫稿前必讀

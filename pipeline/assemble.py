@@ -29,6 +29,7 @@ from scipy.ndimage import maximum_filter1d, minimum_filter1d
 
 sys.path.insert(0, str(Path(__file__).parent))
 from master import integrated_lufs, limit_true_peak, TARGET_LUFS
+from brand import SHIP_RATE
 from stitch import gap_for
 
 SR = 44100
@@ -340,8 +341,8 @@ def main():
     ap.add_argument("--stings", type=int, default=None,
                     help="轉場次數,預設依整集長度決定(約每 9 分鐘一次)")
     ap.add_argument("-o", "--output", default=None)
-    ap.add_argument("--rate", type=float, default=1.0,
-                    help="加速倍率。只加速人聲,音樂保持原速")
+    ap.add_argument("--rate", type=float, default=SHIP_RATE,
+                    help=f"加速倍率,預設 {SHIP_RATE}(交付速度)。只加速人聲,音樂原速")
     ap.add_argument("--music-rel", type=float, default=MUSIC_REL)
     ap.add_argument("--duck", type=float, default=None)
     a = ap.parse_args()
@@ -350,14 +351,17 @@ def main():
     outro = load(a.outro)[0] if a.outro else None
     sting = load(a.sting)[0] if a.sting else None
     y, info = episode(d, intro, outro, sting, n_stings=a.stings, rate=a.rate)
+    info["rate"] = a.rate
     tag = "" if a.rate == 1.0 else f"_x{a.rate:g}"
     out = Path(a.output) if a.output else d / f"FULL_EPISODE_mixed{tag}.wav"
     sf.write(str(out), y, SR)
-    print(f"-> {out}")
-    if a.rate == 1.0:      # 時間戳只有原速那份有意義,show notes 用它
+    ship = abs(a.rate - SHIP_RATE) < 1e-9
+    print(f"-> {out}" + ("   ← 交付用" if ship else ""))
+    if ship:
+        # 時間戳只有交付速度那份能發布 —— 別的速度的章節時間對不上聽眾聽到的檔
         (d / "MIX.json").write_text(json.dumps(info, ensure_ascii=False, indent=1,
                                                default=float))
-        print(f"-> {d / 'MIX.json'}  ({len(info['marks'])} 段的最終時間戳)")
+        print(f"-> {d / 'MIX.json'}  ({len(info['marks'])} 段的時間戳 @ {a.rate}x)")
 
 
 if __name__ == "__main__":

@@ -195,11 +195,21 @@ uv run python pipeline/verify.py out/<slug>/zh
 
 ```bash
 uv run python pipeline/stitch.py out/<slug>/zh          # 先聽純人聲,確認節奏
-for r in 1.0 1.1 1.2 1.3 1.4 1.5; do
-  uv run python pipeline/assemble.py out/<slug>/zh \
-    --intro music/intro.wav --outro music/outro.wav --sting music/sting.wav --rate $r
-done
+uv run python pipeline/assemble.py out/<slug>/zh \
+  --intro music/intro.wav --outro music/outro.wav --sting music/sting.wav
+uv run python pipeline/assemble.py out/<slug>/zh \
+  --intro music/intro.wav --outro music/outro.wav --sting music/sting.wav --rate 1.0
+afconvert -f m4af -d aac -b 128000 \
+  out/<slug>/zh/FULL_EPISODE_mixed_x1.1.wav out/<slug>/zh/<slug>-zh.m4a
 ```
+
+**交付速度是 1.1x,不是 1.0x。** `--rate` 的預設值就是 `brand.py` 的
+`SHIP_RATE`,所以第一行不用帶參數。Johnny 判斷 TTS 的原速偏慢,
+所以固定把人聲加速到 1.1 倍,中英兩版一致;**音樂維持原速**。
+第二行的 1.0 是存檔母帶,不是交付物。
+
+`FULL_EPISODE_mixed.wav`(沒有後綴)是 **1.0 母帶**,
+`FULL_EPISODE_mixed_x1.1.wav` 才是交付用的。真正上傳的是編出來的 `.m4a`。
 
 `assemble.py` 一次做完混音與正規化:人聲 + 片頭 + 章節轉場 + 片尾,
 輸出 44.1 kHz 單聲道、**-19 LUFS**(單聲道標準;-16 是立體聲的值)、
@@ -221,11 +231,15 @@ true peak 在 **-1 dBTP** 以下 —— 留這 1 dB 是因為取樣點之間的�
 取「最長一段沒有標點的區間」最短的那一組。要覆寫才用 `--stings <n>`。
 
 產出:
-- `FULL_EPISODE.wav` —— 純人聲,拼接後(stitch.py,只用來試聽節奏)
-- `FULL_EPISODE_mixed.wav` —— **交付用的原速母帶**
-- `FULL_EPISODE_mixed_x1.1` ~ `x1.5` —— 五個加速版本
-- `MIX.json` —— 混音後每段的真實時間戳,show notes 讀它
+- `<slug>-<lang>.m4a` —— **上傳用的檔案**(128k AAC,1.1x)
+- `FULL_EPISODE_mixed_x1.1.wav` —— 交付母帶,無損
+- `FULL_EPISODE_mixed.wav` —— 1.0 存檔母帶,不交付
+- `FULL_EPISODE.wav` —— 純人聲,拼接後(只用來試聽節奏)
+- `MIX.json` —— **交付速度**那份的時間戳,show notes 讀它
 - `TIMELINE.md` / `report.json`
+
+不要留別的倍率。app 的倍速是疊在檔案之上的,交付 1.1 之後聽眾再選 1.2
+拿到的是 1.32 —— 那是預期行為,不需要我們預先燒好每個倍率。
 
 音樂三段在 `music/`,**已經定案,不要重新評估** —— 三輪盲測選出來的,
 過程在 `docs/INTRO-MUSIC.md`。

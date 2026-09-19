@@ -17,7 +17,7 @@ from pathlib import Path
 import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).parent))
-from brand import (AUDIO_DISCLOSURE, FOOTER, META_DISCLOSURE, SHOW)
+from brand import (AUDIO_DISCLOSURE, FOOTER, META_DISCLOSURE, SHIP_RATE, SHOW)
 from stitch import gap_for          # 停頓規則只有一份,時間戳才對得上音檔
 
 
@@ -32,6 +32,12 @@ def timeline(out_dir: Path, rows):
     mix = out_dir / "MIX.json"
     if mix.exists():
         d = json.loads(mix.read_text())
+        rate = d.get("rate", 1.0)
+        if abs(rate - SHIP_RATE) > 1e-9:
+            raise SystemExit(
+                f"✗ MIX.json 是 {rate}x 的時間軸,交付速度是 {SHIP_RATE}x。\n"
+                f"  章節時間會差約 {abs(1 - rate / SHIP_RATE) * 100:.0f}%。\n"
+                f"  重跑:assemble.py {out_dir} --intro … --rate {SHIP_RATE}")
         return d["marks"], d["total_s"]
     t, marks = 0.0, {}
     for r in rows:
