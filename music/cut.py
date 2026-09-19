@@ -2,7 +2,7 @@
 
 用法:uv run python music/cut.py
 
-原曲:Jonas Blakewood / Presentation(Pixabay,見 docs/INTRO-MUSIC.md 的授權存證)。
+原曲:Jonas Blakewood / Presentation(Pixabay,見 docs/MUSIC.md 的授權存證)。
 放在 music/source/ 進版控,因為沒有它就沒辦法重切,也沒辦法證明來源。
 
 三個位置都是 Johnny 盲測選的,不要自己改:

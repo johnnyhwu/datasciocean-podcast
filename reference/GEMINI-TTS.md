@@ -140,7 +140,7 @@ Gemini 沒有 `emotion` 之類的參數。控制方式是把指示寫進 `input`
 > longer than a few minutes. We recommend splitting your transcripts into
 > smaller chunks."
 
-好消息是官方建議的做法(切小塊)正是我們的 beat 制度(plan.md §4.5)。
+好消息是官方建議的做法(切小塊)正是我們的 beat 制度(PLAN.md §4.5)。
 且預建音色是**固定的身分目標**,不像 Fish/BlueMagpie 每次從參考音檔重新推斷 ——
 後者正是「聽起來像不同人」的成因。
 

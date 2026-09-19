@@ -1,6 +1,6 @@
 """把一集的 beat 片段拼接成完整音檔,beat 之間以靜音分隔。
 
-對應 plan.md pipeline 步驟 [10]。用法:uv run python pipeline/stitch.py <out_dir>
+對應 PLAN.md pipeline 步驟 [10]。用法:uv run python pipeline/stitch.py <out_dir>
 
 這一步驗證的是「整集聽起來如何」,
 而不只是單句 —— 節奏、停頓長度、語氣連貫性只有連續聽才判斷得出來。

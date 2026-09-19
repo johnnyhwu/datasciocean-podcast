@@ -1,6 +1,6 @@
 """音量正規化 —— ITU-R BS.1770-4 響度量測 + 增益 + true peak 保護。
 
-環境裡沒有 ffmpeg(本專案刻意避開系統依賴),plan.md 5.2 寫的
+環境裡沒有 ffmpeg(本專案刻意避開系統依賴),PLAN.md 5.2 寫的
 `ffmpeg loudnorm` 不能用,所以整套 BS.1770 用 numpy + scipy 自己實作。
 
 為什麼不是看波形最大值:peak 跟人耳感受幾乎無關。一段全程平穩的旁白,
