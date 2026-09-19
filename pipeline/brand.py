@@ -35,9 +35,19 @@ DataSci Ocean 想做的,是你在這片深海裡的探照燈。我會替你讀�
 不必再對著複雜的 PDF 孤單發呆。戴上耳機,這一次有人陪你一起下潛。
 
 我是 Johnny。內容改編自我個人的研讀筆記,由 AI 語音合成。完整的架構圖、Prompt 範例與程式碼在部落格:https://datasciocean.com/""",
-    # 英文版**重寫,不翻譯** —— 英文市場同類節目多得多,差異化的講法要換一套。
-    # 故意留 None:之後的 RSS 腳本讀到會直接炸掉,而不是靜靜發布一段空簡介。
-    "en": None,
+    # 英文版是**重寫不是翻譯**。中文版的結構沿用(痛點 -> 定位 -> 收尾 -> 揭露),
+    # 但英文市場同類節目多一個量級,所以差異化(「論文沒說的部分」)提前到
+    # 定位句就講完,不鋪陳。海洋的比喻對齊封面 —— 封面上就是一盞被垂降到
+    # 深水裡的燈,不是岸上掃射的探照燈。
+    # 沒有直譯「你是否也感到焦慮」:那在英文裡是明顯的翻譯腔,改成用事實
+    # 製造焦慮而不用「焦慮」這個字。
+    "en": """Every week brings another paper you're told you have to read. A 20-page PDF eats an afternoon, and the headline number usually turns out to have been carefully chosen.
+
+I read them properly and take them apart in plain language — including the parts the authors left out: which experiments have holes, which limitations got quietly skipped.
+
+You don't have to stare at another PDF alone. This time someone's going down there with you.
+
+I'm Johnny. Adapted from my own notes; the voice is AI-generated. Diagrams and code: https://datasciocean.com/en/""",
 }
 
 SHOW = {
@@ -54,6 +64,16 @@ SHOW = {
         "post": SITE + "/en/paper-intro/{article}/",
     },
 }
+
+# Spotify 的節目簡介上限是 600 字元。超過會被截斷,而被截斷的位置正好是
+# 最後一行 —— 也就是 Apple 1.11 要求的 metadata 端 AI 揭露。所以這不是
+# 排版問題,是合規問題,在匯入時就擋掉。
+DESCRIPTION_MAX = 600
+for _lang, _text in DESCRIPTION.items():
+    if _text is not None and len(_text) > DESCRIPTION_MAX:
+        raise ValueError(
+            f"節目簡介({_lang})有 {len(_text)} 字元,超過 {DESCRIPTION_MAX} 上限。"
+            f"平台會截斷,而被切掉的是結尾的 AI 揭露。請先縮短。")
 
 # 音訊內的揭露。每集由 TTS 重新生成,所以只驗「必須出現的事實」而不是
 # 逐字比對 —— 措辭可以跟當集主題呼應,但「聲音是 AI 合成」這件事不能不見。
