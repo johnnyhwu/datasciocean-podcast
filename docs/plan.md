@@ -14,7 +14,7 @@
 > | 三、腳本生成 | ✅ 已實作;實際判準以 `reference/NARRATION.md` 為準,它比這章具體得多 |
 > | 四、TTS 語音合成 | ✅ 已定案(Gemini + Zubenelgenubi);選型過程見 `RESEARCH-HISTORY.md` |
 > | 五、音訊後製 | ✅ 已實作。**5.2 的 ffmpeg 指令不能用**(本專案不裝 ffmpeg),已改由 `pipeline/master.py` 用 numpy + scipy 實作完整的 BS.1770-4;目標改為 **-19 LUFS 單聲道**(5.2 寫的 -16 是立體聲的值) |
-> | 六、品牌素材 | ⬜ **待做** —— 片頭音樂、封面。**6.2「固定開場白錄一次重複使用」已否決**:b01 的固定半句與變動半句在同一句裡,拆開會留下接縫,改為每集 TTS 重新生成 |
+> | 六、品牌素材 | **6.1 片頭音樂進行中** —— 改為用 ACE-Step 1.5 本機生成(MIT 授權),不走音樂庫;選型見 `MUSIC-GENERATION-RESEARCH.md`,生成紀錄與各輪盲測見 `INTRO-MUSIC.md`。附錄 B 的三個 prompt 方向仍是起點。**6.2「固定開場白錄一次重複使用」已否決**:b01 的固定半句與變動半句在同一句裡,拆開會留下接縫,改為每集 TTS 重新生成。**6.3 封面 ⬜ 待做** |
 > | 七、發布與合規 | 部分完成。**7.3 AI 揭露 ✅** —— 音訊端在 `identity` beat,metadata 端在 `shownotes.py`,兩處都有自動 gate(`validate.py` 在合成前擋、`shownotes.py` 在發布前擋)。**7.4 show notes ✅** —— `pipeline/shownotes.py`,章節時間戳與 `stitch.py` 共用停頓規則。**7.1 上架、7.2 RSS、7.5 版權音樂 ⬜ 待做** |
 > | 八、英文版 | ✅ 已實作,但 **8.2 的機制與實作不同**:實際做法是中文版先寫完,英文版沿用 `id`/`role`/`beat` 骨架、逐字稿重寫(不是從語言中立的 beats 各自渲染)。避免翻譯腔的結論仍然對。**8.1「必須是兩個獨立 RSS feed」仍然有效,發布時是硬性限制** |
 > | 九、上線路徑 | ⬜ **待做** |
@@ -167,6 +167,10 @@ episodes/
 ---
 
 ## 三、腳本生成
+
+> **本章已被取代。** 實際判準以 `reference/NARRATION.md` 與
+> `.claude/skills/podcast/SKILL.md` 為準,它們比這章具體得多,而且是從
+> 實際踩過的坑長出來的。這章留著看當初的推導,不要照著執行。
 
 ### 3.1 為什麼要有 beats 這一層
 
@@ -416,6 +420,10 @@ beats 需帶 `首次出現術語` 欄位記錄對照。
 
 ## 四、TTS 語音合成
 
+> **本章已被取代。** 選型早已定案(Gemini TTS 走 OpenRouter + Zubenelgenubi),
+> 過程見 `RESEARCH-HISTORY.md`,實測陷阱見 `reference/GEMINI-TTS.md`。
+> 這章的候選比較是決定之前的猜測,不是結論。
+
 ### 4.1 選型的前提
 
 **公開 TTS 排行榜對本專案幾乎沒有參考價值。** 主流評測(如 Artificial Analysis Speech Arena)只評估英文音訊。本專案的需求是「繁體中文為主、密集夾雜英文技術術語」,在任何公開榜單上都沒有對應評測項目。
@@ -503,11 +511,9 @@ CLAUDE.md, rm -rf, fallback, fuzzy match
 
 **停頓應由程式控制而非交給 TTS**,因為 TTS 的句末停頓不穩定,同模型不同段落可能差異很大。
 
-```python
-from pydub import AudioSegment
-silence = AudioSegment.silent(duration=600)  # 毫秒
-final = seg1 + silence + seg2 + silence + seg3
-```
+> ⚠️ 原文這裡的 pydub 範例**不要照做**。pydub 處理非 wav 格式要 ffmpeg,
+> 正是本專案刻意避開的系統依賴。實作見 `pipeline/stitch.py`,
+> 靜音就是 `np.zeros(int(gap * sr))`,不需要任何套件。
 
 ### 5.2 音量正規化
 
@@ -571,7 +577,12 @@ intro / logo / stinger          <- 長度類型
 
 **授權**:必須為免版權(royalty-free)且**允許商業使用**(即使初期不接贊助,先選商用授權可避免未來返工)。來源可考慮 Free Music Archive、Pixabay Music,務必逐一確認授權條款。
 
-**銜接技巧**:片頭音樂淡出時與人聲重疊 1-2 秒(音樂降至約 -30 dB 作背景),比硬切自然。pydub 的 `fade_out` 與 `overlay` 可實作。
+**銜接技巧**:片頭音樂淡出時與人聲重疊 1-2 秒(音樂降至約 -30 dB 作背景),比硬切自然。
+
+> ⚠️ **不要用 pydub**(沒裝,也不該裝 —— 它需要 ffmpeg)。淡出是乘一條窗函數、
+> 疊加是對齊後相加,numpy 兩行就夠:
+> `music[-n:] *= np.linspace(1, 0, n)` 然後 `out[i:i+len(m)] += m * 10**(-30/20)`。
+> 混音腳本還沒寫,寫的時候照這個做。
 
 ### 6.2 開場與片尾說辭
 
@@ -813,6 +824,8 @@ podcast 的發現機制很大程度依賴標題。既有的部落格標題風格
 
 ## 附錄 A:beats 完整結構定義
 
+> **已被實際 schema 取代**,見 SKILL.md 步驟 3。這裡的欄位設計理由仍可讀。
+
 ### 一般 beat
 
 ```
@@ -942,7 +955,7 @@ No vocals, no cinematic drama.
 
 ## 附錄 C:TTS 測試集
 
-完整測試集見獨立檔案 `tts-test-suite.md`,含 18 句測試句、評分表與判讀原則。
+完整測試集見 `docs/TTS-TEST-SUITE.md`,含 18 句測試句、評分表與判讀原則。
 
 ### 五組結構
 

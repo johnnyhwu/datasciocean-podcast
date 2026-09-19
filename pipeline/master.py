@@ -63,23 +63,31 @@ def k_weight(x, sr):
     """套 K-weighting。係數依取樣率當場推導,不寫死 48kHz 的那組。"""
     b, a = _biquad_shelf(sr, 1681.974450955533, 0.7071752369554196,
                          3.999843853973347)
-    y = lfilter(b, a, x)
+    y = lfilter(b, a, x, axis=0)
     b, a = _biquad_hpf(sr, 38.13547087602444, 0.5003270373238773)
-    return lfilter(b, a, y)
+    return lfilter(b, a, y, axis=0)
 
 
 def _block_power(y, sr, block_s, step_s):
-    """逐塊的均方功率。用 cumsum 一次算完,不要逐塊迴圈。"""
+    """逐塊的均方功率,用 cumsum 一次算完,不要逐塊迴圈。
+
+    多聲道時把各聲道的功率**相加**(BS.1770 對 L/R 的通道加權都是 1.0),
+    不是先降混再量 —— 左右不同的素材在降混時會互相抵消,音樂很常見,
+    那樣量出來會偏低。人聲是單聲道,走的是同一條路徑。
+    """
     bn, sn = int(round(block_s * sr)), int(round(step_s * sr))
+    y = np.asarray(y, dtype=np.float64)
+    if y.ndim == 1:
+        y = y[:, None]
     if len(y) < bn:
         return np.array([])
-    c = np.concatenate(([0.0], np.cumsum(y.astype(np.float64) ** 2)))
+    c = np.concatenate([np.zeros((1, y.shape[1])), np.cumsum(y ** 2, axis=0)])
     starts = np.arange(0, len(y) - bn + 1, sn)
-    return (c[starts + bn] - c[starts]) / bn
+    return ((c[starts + bn] - c[starts]) / bn).sum(axis=1)
 
 
 def _lufs(z):
-    """單聲道:通道加權 G = 1.0。功率為 0 的塊要擋掉,不然 log10 會炸。"""
+    """z 是已經跨聲道加總過的功率。功率為 0 的塊要擋掉,不然 log10 會炸。"""
     z = np.asarray(z, dtype=np.float64)
     out = np.full(np.shape(z), -np.inf)
     np.log10(z, out=out, where=z > 0)
@@ -118,7 +126,7 @@ def loudness_range(x, sr):
 def true_peak_db(x, sr):
     """過取樣到 ≥192kHz 再量。直接看樣本最大值會低估,那正是 AAC 爆音的來源。"""
     up = max(4, int(np.ceil(192000 / sr)))
-    p = float(np.max(np.abs(resample_poly(x, up, 1))))
+    p = float(np.max(np.abs(resample_poly(x, up, 1, axis=0))))
     return 20 * np.log10(p) if p > 0 else -np.inf
 
 

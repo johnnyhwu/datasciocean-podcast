@@ -1,5 +1,11 @@
 # 商用 TTS 服務窮盡式市場調查:DataSci Ocean 中文科技 Podcast 語音方案選型
 
+> **現況(2026-09-16 由 Claude 補):已定案,本文是決定之前的市場調查。**
+> 最後選的是 `google/gemini-3.1-flash-tts-preview`(走 OpenRouter),
+> 音色 `Zubenelgenubi`。決策過程見 `RESEARCH-HISTORY.md`。
+> 本文留著的價值是授權與價格的比對紀錄 —— 日後要換供應商時不用重查一遍。
+
+
 ## TL;DR
 - **以「中英混雜品質 + 台灣腔」為第一權重,最適合的正式方案是雲端的 MiniMax Speech 2.8(HD)**:2026 年台灣腔實測第一名,且在「同事 sync 一下明天的 schedule」這類中英夾雜句中連英文字都能帶台灣腔;若要自架且商用授權乾淨,首選 **CosyVoice3 0.5B(Apache 2.0,Mac MLX 可跑、RTF≈0.5、可懂度最佳)**,用一段台灣腔參考音檔做 zero-shot 克隆。
 - **使用者原本的兩個領先候選都要重新定位,且都不是「開箱即用」的最佳解**:Qwen3-TTS 中英混讀確實流暢(「无明显切换卡顿」)但內建音色是大陸腔、無台灣腔;IndexTTS-2/2.5 技術指標最強(WER 6.75、說話人相似度 73.18 為多語冠軍)但**授權是 bilibili 非商用授權,商用須寄信 indexspeech@bilibili.com 另外取得付費授權**,對「正式商用」是紅旗。

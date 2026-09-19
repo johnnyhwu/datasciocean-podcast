@@ -61,10 +61,13 @@ episodes/<slug>/          一集一個目錄,中英兩份 spec 放在一起
                           改稿就會與音檔脫節。**新的一集不可以帶著 ✗ 就去合成。**
 out/<slug>/{zh,en}/       該版的所有產出(gitignore)
 docs/                     給人讀的,執行流程不需要
-  plan.md                 原始規劃書;還沒做的部分(片頭、發布)在這裡
-  RESEARCH-HISTORY.md     選型過程的完整紀錄
+  plan.md                 原始規劃書。還沒做的部分(封面、RSS、上線)在這裡;
+                          第三、四章與附錄 A 已被取代,章首有警示
+  RESEARCH-HISTORY.md     TTS / STT 選型過程的完整紀錄
+  INTRO-MUSIC.md          片頭曲的 prompt、seed、各輪盲測結果與結論
+  MUSIC-GENERATION-RESEARCH.md  音樂模型選型與授權盡職調查(Johnny 做的)
+  vendor-research.md      商用 TTS 市場調查(Johnny 做的,已定案)
   TTS-TEST-SUITE.md       中英夾雜測試集,換引擎時才需要
-  vendor-research.md      Johnny 自己做的市場調查
 archive/                  Johnny 的錄音(gitignore,克隆已放棄,留著備查)
 ```
 
@@ -121,5 +124,11 @@ Apple Podcasts 第 1.11 條,漏掉可能整集下架。
 
 ## 還沒做的部分
 
-片頭片尾音效、BGM、封面、RSS 發布。
-規劃在 `docs/plan.md` 第六、七、九章,尚未實作。
+- **片頭曲**:進行中。用 ACE-Step 1.5 本機生成(MIT 授權),已跑三輪盲測,
+  方向收斂到「Rhodes 電鋼 + 暖的木質敲擊 accent」。過程與 seed 見
+  `docs/INTRO-MUSIC.md`。**環境是拋棄式的**(`~/.cache/acestep-trial/`),
+  定案後整包刪除,刪除方式見該目錄的 `TEARDOWN.md`。
+- **片尾曲 / 混音腳本 / BGM**:未做。混音要自己用 numpy 做
+  (淡出是乘窗函數、疊加是對齊相加),**不要用 pydub**,它要 ffmpeg。
+  混完之後要對成品重跑一次 `master.py`,因為加了音樂響度會變。
+- **封面、RSS 發布、上線**:未做。規劃在 `docs/plan.md` 第六、七、九章。
