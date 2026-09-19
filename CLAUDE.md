@@ -39,12 +39,13 @@ Whisper 回轉驗證 → 拼接加停頓 → 音量正規化 →
 ## 目錄
 
 ```
-pipeline/                 九支檔案,就是整條流程
+pipeline/                 十支檔案,就是整條流程
   validate.py             beats.json 結構檢查(合成前擋錯)
   tts.py                  Gemini TTS 合成
   verify.py               Whisper 回轉驗證(中英文各一套門檻,自動判斷語言)
   rescore.py              改了正規化規則後重算分數,不必重跑 STT
   stitch.py               拼接 + 依 role 加停頓
+  assemble.py             片頭音樂 + 人聲 + 片尾音樂混成一集(純 numpy)
   master.py               音量正規化(BS.1770-4 LUFS + true peak,純 numpy)
   shownotes.py            show notes + 發布前的 AI 揭露 gate
   brand.py                節目固定字串(名稱、網址、揭露措辭)
@@ -134,9 +135,11 @@ Apple Podcasts 第 1.11 條,漏掉可能整集下架。
   單一動機不發展、低調不搶話**;被明確淘汰的是「敲擊樂器一問一答」的結構。
   過程與量測見 `docs/INTRO-MUSIC.md`。授權要留存證(來源網址、授權條款、
   下載日期),CC0 / CC-BY 都要記,商用 podcast 出事是授權出事。
-- **混音腳本 / BGM**:未做。混音要自己用 numpy 做
-  (淡出是乘窗函數、疊加是對齊相加),**不要用 pydub**,它要 ffmpeg。
-  混完之後要對成品重跑一次 `master.py`,因為加了音樂響度會變。
+- **混音腳本**:✅ `pipeline/assemble.py`。純 numpy,沒有 pydub(它要 ffmpeg)。
+  輸出 44.1 kHz 單聲道 −19 LUFS,交接的壓低量逐首反推(見檔頭註解)。
+- **全程鋪底 BGM**:**不做**,有量測依據。音樂壓到寬頻 −20 dB 時,1–4 kHz 的
+  子音帶其實只低 18.6 dB,而子音決定聽不聽得懂;加上 1.1–1.5× 的加速版本會把
+  音樂一起 WSOLA 拉伸,產生顆粒感。音樂只當標點:片頭、章節轉場、片尾。
 - **封面**:✅ 已完成,`thumbnail/cover-3000.jpg`(3000×3000、RGB、中英共用)。
   做法與踩過的坑見 `docs/COVER-ART.md`。**任何視覺素材的驗收都是縮到
   150 px 和 55 px 看** —— 細於全寬 1% 的元素在那個尺寸不會存在。
