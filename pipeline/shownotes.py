@@ -22,7 +22,17 @@ from stitch import gap_for          # 停頓規則只有一份,時間戳才對�
 
 
 def timeline(out_dir: Path, rows):
-    """依照 stitch.py 的拼接方式重算每段的起始秒數。"""
+    """每段的起始秒數。
+
+    優先讀 `MIX.json` —— 加了片頭音樂與章節轉場之後,時間軸整個往後推,
+    自己重算一定會錯(片頭把所有東西推後約 6.5 秒,每次轉場再推 5.4 秒)。
+    那份檔案是 `assemble.py` 混音時寫的,是唯一知道真實位置的來源。
+    沒有混音成品時(還在驗證逐字稿的階段)才退回依 stitch.py 的規則重算。
+    """
+    mix = out_dir / "MIX.json"
+    if mix.exists():
+        d = json.loads(mix.read_text())
+        return d["marks"], d["total_s"]
     t, marks = 0.0, {}
     for r in rows:
         w = out_dir / f"{r['id']}.wav"

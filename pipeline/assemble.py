@@ -37,6 +37,9 @@ DUCK_DB = -15.0    # 重疊期間音樂壓低多少
 MUSIC_REL = 0.0    # 音樂的積分響度相對人聲(dB)
 OUTRO_PRE = 3.0    # 片尾音樂在人聲結束前多久就進來
 OUTRO_RISE = 0.8   # 人聲結束後音樂升回全音量的時間
+STING_REL = -3.0   # 章節轉場相對人聲的積分響度
+STING_PAD = 0.7    # 轉場前後的靜音,取代原本那個 beat 的停頓
+MIN_PER_STING = 9.0  # 大約每幾分鐘一次轉場
 
 
 def load(path, sr=SR):
@@ -170,6 +173,7 @@ def build(voice, intro=None, outro=None, sr=SR, music_rel=MUSIC_REL,
         info["intro_s"] = round(len(intro) / sr, 2)
 
     canvas = place(canvas, voice, v_at)
+    info["voice_at"] = round(v_at / sr, 3)
     v_end = v_at + len(voice)
 
     if outro is not None:
@@ -211,23 +215,149 @@ def stitch_voice(d, sr=SR, ids=None):
     return np.concatenate(parts[:-1])
 
 
+def sting_count(total_s, lo=2, hi=5):
+    """依整集長度決定要放幾次轉場。
+
+    大約每 9 分鐘一次。三十分鐘的一集就是三次 —— 八個章節點全放的話
+    平均不到四分鐘一次,轉場會從「這裡換段落了」退化成背景噪音。
+    下限 2 是因為一次聽起來像意外,上限 5 是因為再多就變成節目的節奏本身。
+    """
+    return int(min(hi, max(lo, round(total_s / 60 / MIN_PER_STING))))
+
+
+def pick_sting_points(cands, total_s, n):
+    """挑 n 個章節點,讓「最長一段沒有標點的區間」最短。
+
+    第一版是取等距目標的最近鄰,結果在 ep003 上把三次轉場全擠在前 18 分鐘,
+    最後 11 分鐘一次都沒有 —— 那一段的章節點本來就稀疏,最近鄰會一直往前挑。
+    改成直接對目標最佳化:枚舉組合,取最大間隔最小的那一組,平手再取間隔
+    變異數最小的。章節點只有十幾個,枚舉完全負擔得起。
+    """
+    from itertools import combinations
+    if n <= 0 or not cands:
+        return []
+    n = min(n, len(cands))
+    best = None
+    for c in combinations(range(len(cands)), n):
+        gaps = np.diff([0.0] + [cands[i][1] for i in c] + [total_s])
+        key = (round(float(gaps.max()), 1), float(np.var(gaps)))
+        if best is None or key < best[0]:
+            best = (key, c)
+    return [cands[i][0] for i in best[1]]
+
+
+def episode(out_dir, intro=None, outro=None, sting=None, n_stings=None,
+            sr=SR, sting_rel=STING_REL, rate=1.0, verbose=True):
+    """混一整集:人聲 + 章節轉場 + 片頭 + 片尾。回傳 (成品, 資訊)。
+
+    轉場插在章節 beat 的前面,取代該處原本的停頓 —— 不是疊在停頓上,
+    不然那個縫會變成 0.7 + 原停頓 + 0.7,聽起來像斷線。
+    第一個章節點(b00_hook)不放,那是開場,前面已經有片頭音樂了。
+
+    `rate` > 1 是加速版本。**只加速人聲,音樂保持原速** —— WSOLA 是靠找相似
+    波形重疊接起來的,拉伸語音很乾淨,拉伸音樂會打散它的週期性,產生顆粒感與
+    節奏抖動。所以加速要在混音**之前**做:每段人聲各自拉伸、停頓按比例縮短,
+    片頭片尾與轉場再用原速疊上去。先混完再整段加速就毀了音樂。
+    """
+    if rate != 1.0:
+        from speedup import wsola
+    out_dir = Path(out_dir)
+    lang, slug = out_dir.name, out_dir.parent.name
+    rows = json.loads((out_dir / "report.json").read_text())
+    spec_path = Path(__file__).parent.parent / "episodes" / slug / f"{lang}.json"
+    spec = json.loads(spec_path.read_text())
+    chapter_of = {r["id"]: r["chapter"] for r in spec if r.get("chapter")}
+
+    segs, t = [], 0.0
+    for r in rows:
+        w = out_dir / f"{r['id']}.wav"
+        if not w.exists():
+            continue
+        a, _ = load(w, sr)
+        g = gap_for(r)
+        if rate != 1.0:
+            a, g = wsola(a, rate), g / rate
+        segs.append((r["id"], a, g))
+        t += len(a) / sr + g
+    if not segs:
+        raise SystemExit("沒有可用的 beat")
+
+    # 先在「沒有轉場」的時間軸上挑點,誤差只有幾秒,但少一輪相互依賴
+    starts, acc = {}, 0.0
+    for sid, a, g in segs:
+        starts[sid] = acc
+        acc += len(a) / sr + g
+    cands = [(sid, starts[sid]) for sid, _, _ in segs if sid in chapter_of][1:]
+    n = sting_count(acc) if n_stings is None else n_stings
+    pts = set(pick_sting_points(cands, acc, n)) if (sting is not None and n) else set()
+
+    parts, marks, at = [], {}, 0.0
+    sting_at = []
+    for i, (sid, a, g) in enumerate(segs):
+        if sid in pts and parts:
+            parts.pop()                      # 丟掉前一段的停頓
+            at -= segs[i - 1][2]
+            for blk in (np.zeros(int(STING_PAD * sr)), sting,
+                        np.zeros(int(STING_PAD * sr))):
+                if blk is sting:
+                    sting_at.append(round(at, 2))
+                parts.append(blk)
+                at += len(blk) / sr
+        marks[sid] = at
+        parts.append(a)
+        at += len(a) / sr
+        parts.append(np.zeros(int(g * sr)))
+        at += g
+    voice = np.concatenate(parts[:-1])
+
+    if sting is not None and pts:
+        # 人聲的響度只算人聲,不能把還沒調整的轉場算進去 —— 那會互相污染
+        v_lufs = integrated_lufs(np.concatenate([a for _, a, _ in segs]), sr)
+        # 轉場的響度對齊到人聲,不是對齊到片頭 —— 它夾在兩段話之間
+        k = 10 ** ((v_lufs + sting_rel - integrated_lufs(sting, sr)) / 20)
+        voice = np.concatenate([p if p is not sting else p * k for p in parts[:-1]])
+        sting = sting * k
+
+    y, info = build(voice, intro, outro, sr=sr, verbose=verbose)
+    off = info.get("voice_at", 0.0)
+    info["marks"] = {k2: round(v + off, 2) for k2, v in marks.items()}
+    info["stings"] = dict(count=len(pts), at=[round(x + off, 2) for x in sting_at],
+                          beats=[sid for sid, _, _ in segs if sid in pts],
+                          chapters=[chapter_of[sid] for sid, _, _ in segs if sid in pts],
+                          rel_db=sting_rel)
+    if verbose and pts:
+        print(f"  轉場 {len(pts)} 次(整集 {acc/60:.0f} 分,每 {MIN_PER_STING:.0f} 分一次):")
+        for sid in [s2 for s2, _, _ in segs if s2 in pts]:
+            print(f"    {int(info['marks'][sid]//60)}:{int(info['marks'][sid]%60):02d}"
+                  f"  {sid}  {chapter_of[sid]}")
+    return y, info
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("out_dir")
-    ap.add_argument("--intro"); ap.add_argument("--outro")
+    ap.add_argument("--intro"); ap.add_argument("--outro"); ap.add_argument("--sting")
+    ap.add_argument("--stings", type=int, default=None,
+                    help="轉場次數,預設依整集長度決定(約每 9 分鐘一次)")
     ap.add_argument("-o", "--output", default=None)
+    ap.add_argument("--rate", type=float, default=1.0,
+                    help="加速倍率。只加速人聲,音樂保持原速")
     ap.add_argument("--music-rel", type=float, default=MUSIC_REL)
     ap.add_argument("--duck", type=float, default=None)
     a = ap.parse_args()
     d = Path(a.out_dir)
-    voice = stitch_voice(d)
     intro = load(a.intro)[0] if a.intro else None
     outro = load(a.outro)[0] if a.outro else None
-    y, info = build(voice, intro, outro, music_rel=a.music_rel, duck_db=a.duck)
-    out = Path(a.output) if a.output else d / "FULL_EPISODE_mixed.wav"
+    sting = load(a.sting)[0] if a.sting else None
+    y, info = episode(d, intro, outro, sting, n_stings=a.stings, rate=a.rate)
+    tag = "" if a.rate == 1.0 else f"_x{a.rate:g}"
+    out = Path(a.output) if a.output else d / f"FULL_EPISODE_mixed{tag}.wav"
     sf.write(str(out), y, SR)
     print(f"-> {out}")
-    print(json.dumps(info, ensure_ascii=False))
+    if a.rate == 1.0:      # 時間戳只有原速那份有意義,show notes 用它
+        (d / "MIX.json").write_text(json.dumps(info, ensure_ascii=False, indent=1,
+                                               default=float))
+        print(f"-> {d / 'MIX.json'}  ({len(info['marks'])} 段的最終時間戳)")
 
 
 if __name__ == "__main__":

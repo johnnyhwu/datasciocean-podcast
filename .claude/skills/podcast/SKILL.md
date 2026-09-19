@@ -191,32 +191,44 @@ uv run python pipeline/verify.py out/<slug>/zh
 `uv run python pipeline/rescore.py <out_dir> --write` 重算,不要重跑 STT;
 並且**順手 rescore 另一個語言那版**,確認新規則沒把它弄壞。
 
-## 步驟 8:拼接、正規化與輸出(兩版都要)
+## 步驟 8:混音與輸出(兩版都要)
 
 ```bash
-uv run python pipeline/stitch.py  out/<slug>/zh
-uv run python pipeline/master.py  out/<slug>/zh/FULL_EPISODE.wav
-uv run python pipeline/speedup.py out/<slug>/zh/FULL_EPISODE_norm.wav 1.1 1.2 1.3 1.4 1.5
+uv run python pipeline/stitch.py out/<slug>/zh          # 先聽純人聲,確認節奏
+for r in 1.0 1.1 1.2 1.3 1.4 1.5; do
+  uv run python pipeline/assemble.py out/<slug>/zh \
+    --intro music/intro.wav --outro music/outro.wav --sting music/sting.wav --rate $r
+done
 ```
 
-**順序不能換。** 正規化要在變速之前:`speedup.py` 會拿 `master.py` 的
-true peak 判準做限幅,先正規化才有正確的基準。
+`assemble.py` 一次做完混音與正規化:人聲 + 片頭 + 章節轉場 + 片尾,
+輸出 44.1 kHz 單聲道、**-19 LUFS**(單聲道標準;-16 是立體聲的值)、
+true peak 在 **-1 dBTP** 以下 —— 留這 1 dB 是因為取樣點之間的波形會更高,
+壓成 AAC 時會冒出來。所以**不需要再跑 master.py**;要單獨量的時候用
+`master.py <檔> --measure`。
 
-`master.py` 把整集推到 **-19 LUFS**(單聲道標準;-16 是立體聲的值),
-true peak 壓在 **-1 dBTP** 以下 —— 留這 1 dB 是因為取樣點之間的波形會更高,
-壓成 AAC 時會冒出來。加 `--measure` 可以只量不改。
+**加速必須在混音之前,不能對混完的成品加速。** `--rate` 只拉伸人聲、
+停頓按比例縮短,音樂維持原速。WSOLA 是靠找相似波形重疊接起來的,
+拉伸語音很乾淨,拉伸音樂會打散週期性,產生顆粒感與節奏抖動。
 
-**中英兩版都要跑**,而且兩版量出來的原始響度會不一樣
+**中英兩版都要跑**,而且兩版量出來的原始響度不一樣
 (ep003:中文 -15.4、英文 -16.9),不正規化的話聽眾切換版本會感覺到音量跳動。
+英文版有幾個倍率會停在 -19.05 到 -19.13 而不是剛好 -19.00 —— 那是峰值天花板
+先到了,保峰值優先於補那 0.1 dB,不要為此調高目標。
 
-日後加了片頭音樂 / BGM,**對混完的成品再跑一次 master.py 就好**,腳本不用改。
+**轉場次數是算出來的,不要手填。** 約每 9 分鐘一次、下限 2 上限 5,
+由整集長度決定(ep003 29.6 分 → 3 次)。放哪幾個章節點是枚舉所有組合、
+取「最長一段沒有標點的區間」最短的那一組。要覆寫才用 `--stings <n>`。
 
 產出:
-- `FULL_EPISODE.wav` —— 拼接後、正規化前
-- `FULL_EPISODE_norm.wav` —— 正規化後的原速母帶
-- `FULL_EPISODE_norm_x1.1` ~ `x1.5` —— 五個加速版本(WSOLA,音高不變)
-- `TIMELINE.md` —— 時間軸,可跳段
-- `report.json` —— 每段的驗證結果
+- `FULL_EPISODE.wav` —— 純人聲,拼接後(stitch.py,只用來試聽節奏)
+- `FULL_EPISODE_mixed.wav` —— **交付用的原速母帶**
+- `FULL_EPISODE_mixed_x1.1` ~ `x1.5` —— 五個加速版本
+- `MIX.json` —— 混音後每段的真實時間戳,show notes 讀它
+- `TIMELINE.md` / `report.json`
+
+音樂三段在 `music/`,**已經定案,不要重新評估** —— 三輪盲測選出來的,
+過程在 `docs/INTRO-MUSIC.md`。
 
 ### 已知現象:Gemini 的輸出本來就觸頂
 
@@ -234,8 +246,11 @@ uv run python pipeline/shownotes.py out/<slug>/zh
 uv run python pipeline/shownotes.py out/<slug>/en
 ```
 
-產出 `SHOWNOTES.md`,含章節時間戳(與 `stitch.py` 共用停頓規則,所以
-對得上音檔)、原文連結、固定的 metadata 揭露文字。
+產出 `SHOWNOTES.md`,含章節時間戳、原文連結、固定的 metadata 揭露文字。
+
+**時間戳讀 `MIX.json`**,不是自己重算 —— 片頭音樂把所有東西往後推約 6.5 秒,
+每次章節轉場再推 5.4 秒。所以 show notes 一定要在步驟 8 之後跑;
+還沒混音時它會退回依停頓規則估算,那份數字只能拿來檢查稿子,不能發布。
 
 **標題規則**(plan.md 第九章):沿用部落格的標題風格,有動詞、有懸念,
 **論文名放後半** —— podcast app 的列表會截斷,前幾個字最珍貴。

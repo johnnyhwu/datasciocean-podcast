@@ -6,7 +6,7 @@
 ## 一句話流程
 
 文章 → beats.json(結構化逐字稿)→ Gemini TTS 逐段合成 →
-Whisper 回轉驗證 → 拼接加停頓 → 音量正規化 →
+Whisper 回轉驗證 → 拼接加停頓 → 混入片頭/章節轉場/片尾 + 音量正規化 →
 輸出原速 + 5 個加速版本 → show notes。
 中英兩版各走一次,**兩版都要驗證**。
 
@@ -45,11 +45,14 @@ pipeline/                 十支檔案,就是整條流程
   verify.py               Whisper 回轉驗證(中英文各一套門檻,自動判斷語言)
   rescore.py              改了正規化規則後重算分數,不必重跑 STT
   stitch.py               拼接 + 依 role 加停頓
-  assemble.py             片頭音樂 + 人聲 + 片尾音樂混成一集(純 numpy)
+  assemble.py             混音:人聲 + 片頭 + 章節轉場 + 片尾,順便正規化。
+                          `--rate` 產生加速版本 —— 加速要在混音前做,
+                          只拉伸人聲,音樂保持原速
   master.py               音量正規化(BS.1770-4 LUFS + true peak,純 numpy)
   shownotes.py            show notes + 發布前的 AI 揭露 gate
   brand.py                節目固定字串(名稱、網址、揭露措辭)
-  speedup.py              產生加速版本(WSOLA,不改音高)
+  speedup.py              WSOLA 實作(不改音高)。assemble.py 會 import 它;
+                          單獨執行是對已完成的音檔做加速
 reference/                寫稿與調校的判準,寫稿前必讀
   NARRATION.md            怎麼寫給只能用聽的聽眾(第十節:英文版)
   NORMALIZATION.md        哪些要改寫、哪些不要
@@ -60,7 +63,12 @@ episodes/<slug>/          一集一個目錄,中英兩份 spec 放在一起
                           ✗(b22b_sp 與 b23_four_ops 重複句)—— 這是真的缺陷,
                           使用者決定這集不重錄,而音檔已依現稿生成,
                           改稿就會與音檔脫節。**新的一集不可以帶著 ✗ 就去合成。**
-out/<slug>/{zh,en}/       該版的所有產出(gitignore)
+out/<slug>/{zh,en}/       該版的所有產出(gitignore)。MIX.json 記錄混音後
+                          每段的真實時間戳,show notes 的章節時間讀它 ——
+                          加了片頭與轉場之後自己重算一定會錯
+music/                    片頭、章節轉場、片尾的成品音檔(進版控,品牌資產)。
+                          source/ 是授權原曲,cut.py 可以重切。
+                          授權存證在 docs/INTRO-MUSIC.md
 thumbnail/                節目封面。cover-3000.jpg 是上傳用的成品,
                           v4.png 是生成母帶。中英兩個節目共用同一張
 docs/                     給人讀的,執行流程不需要
@@ -128,13 +136,11 @@ Apple Podcasts 第 1.11 條,漏掉可能整集下架。
 
 ## 還沒做的部分
 
-- **片頭 / 片尾曲**:改用授權曲庫的現成片段,**不再自己生成**。
-  ACE-Step 1.5 跑了五輪盲測,結果 Johnny 不滿意,環境(29 GB)已整包移除
-  —— 不要再重建。但那五輪定出了規格,挑曲子時照這個對:
-  **Rhodes 電鋼或尼龍弦吉他的獨奏質地、無鼓無貝斯、8-12 秒、
-  單一動機不發展、低調不搶話**;被明確淘汰的是「敲擊樂器一問一答」的結構。
-  過程與量測見 `docs/INTRO-MUSIC.md`。授權要留存證(來源網址、授權條款、
-  下載日期),CC0 / CC-BY 都要記,商用 podcast 出事是授權出事。
+- **片頭 / 轉場 / 片尾**:✅ 定案。Jonas Blakewood / Presentation(Pixabay),
+  三段都在 `music/`。**不要重新評估** —— 三輪盲測選出來的,過程在
+  `docs/INTRO-MUSIC.md`。**授權存證還缺兩項**(來源網址、下載當天的條款快照),
+  只有 Johnny 能補,上架前要補完。
+  先前用 ACE-Step 1.5 自己生成跑了五輪,結果不滿意,環境已整包移除,不要再重建。
 - **混音腳本**:✅ `pipeline/assemble.py`。純 numpy,沒有 pydub(它要 ffmpeg)。
   輸出 44.1 kHz 單聲道 −19 LUFS,交接的壓低量逐首反推(見檔頭註解)。
 - **全程鋪底 BGM**:**不做**,有量測依據。音樂壓到寬頻 −20 dB 時,1–4 kHz 的
