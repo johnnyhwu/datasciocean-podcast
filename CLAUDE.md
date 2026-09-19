@@ -60,11 +60,14 @@ episodes/<slug>/          一集一個目錄,中英兩份 spec 放在一起
                           使用者決定這集不重錄,而音檔已依現稿生成,
                           改稿就會與音檔脫節。**新的一集不可以帶著 ✗ 就去合成。**
 out/<slug>/{zh,en}/       該版的所有產出(gitignore)
+thumbnail/                節目封面。cover-3000.jpg 是上傳用的成品,
+                          v4.png 是生成母帶。中英兩個節目共用同一張
 docs/                     給人讀的,執行流程不需要
-  plan.md                 原始規劃書。還沒做的部分(封面、RSS、上線)在這裡;
+  plan.md                 原始規劃書。還沒做的部分(RSS、上線)在這裡;
                           第三、四章與附錄 A 已被取代,章首有警示
   RESEARCH-HISTORY.md     TTS / STT 選型過程的完整紀錄
   INTRO-MUSIC.md          片頭曲的 prompt、seed、各輪盲測結果與結論
+  COVER-ART.md            封面的概念、prompt、縮圖驗收方式與踩過的坑
   MUSIC-GENERATION-RESEARCH.md  音樂模型選型與授權盡職調查(Johnny 做的)
   vendor-research.md      商用 TTS 市場調查(Johnny 做的,已定案)
   TTS-TEST-SUITE.md       中英夾雜測試集,換引擎時才需要
@@ -131,4 +134,9 @@ Apple Podcasts 第 1.11 條,漏掉可能整集下架。
 - **片尾曲 / 混音腳本 / BGM**:未做。混音要自己用 numpy 做
   (淡出是乘窗函數、疊加是對齊相加),**不要用 pydub**,它要 ffmpeg。
   混完之後要對成品重跑一次 `master.py`,因為加了音樂響度會變。
-- **封面、RSS 發布、上線**:未做。規劃在 `docs/plan.md` 第六、七、九章。
+- **封面**:✅ 已完成,`thumbnail/cover-3000.jpg`(3000×3000、RGB、中英共用)。
+  做法與踩過的坑見 `docs/COVER-ART.md`。**任何視覺素材的驗收都是縮到
+  150 px 和 55 px 看** —— 細於全寬 1% 的元素在那個尺寸不會存在。
+- **RSS 發布、上線**:未做,但**不需要寫程式**。`plan.md` 7.1 的結論是初期
+  手動上傳 Spotify for Creators,它自動產生的 feed 可直接提交給 Apple,
+  一份 hosting 兩邊通用。卡在帳號,不卡在技術。
