@@ -2,7 +2,7 @@
   "number": 1,
   "article": "mem0",
   "zh": {
-    "title": "複雜的版本反而輸了 —— Mem0 與 AI Agent 的長期記憶",
+    "title": "【Mem0 深度拆解】知識圖譜輸了論文卻不說？AI Agent 長期記憶只要 4 個動作",
     "summary": "同一個團隊做了兩個版本,一個簡單、一個用知識圖譜。照理說複雜的那個應該比較強,結果四類問題裡它輸了兩類 —— 而論文對這件事,一句解釋都沒有。這集我們把 Mem0 的記憶管理拆開來看,它其實只有四個動作;最後再回頭看那個沒被解釋的結果,講講我自己的猜測。",
     "bullets": [
       "為什麼 AI Agent 會忘記事情,以及「把記憶體開大一點」為什麼治不好這個病",
@@ -12,7 +12,7 @@
     ]
   },
   "en": {
-    "title": "The complex version lost — Mem0 and long-term memory for AI agents",
+    "title": "[Deep Dive: Mem0] The Knowledge Graph Lost and the Paper Stayed Silent? Understanding AI Agent Long-Term Memory in Just 4 Operations",
     "summary": "One team, two versions: a simple one and one built on a knowledge graph. The complex one should have won. It lost two of four question types — and the paper never explains why. We take Mem0's memory management apart (it's only four operations), then come back to that unexplained result and I'll tell you what I think happened.",
     "bullets": [
       "Why AI agents forget, and why \"just use a bigger context window\" doesn't fix it",

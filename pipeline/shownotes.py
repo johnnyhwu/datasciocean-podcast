@@ -100,7 +100,13 @@ def main():
     dst = out_dir / "SHOWNOTES.md"
     dst.write_text("\n".join(L))
 
+    # 標題在 app 列表裡會被截斷,所以直接把截斷後的樣子印出來 ——
+    # 這比訂一個字數上限有用:重點不是「幾個字」,是「被切掉之後還剩什麼」。
+    cut = 25 if lang == "zh" else 45
     print(f"{slug}/{lang}  {hhmmss(total)}  {len(chapters)} 章")
+    print(f"  標題 {len(m['title'])} 字元:{m['title']}")
+    if len(m["title"]) > cut:
+        print(f"  列表只看得到:{m['title'][:cut]}…")
     print(f"  ✓ 音訊揭露  ✓ metadata 揭露  ✓ 原文連結 {url}")
     print(f"-> {dst}")
 

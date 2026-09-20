@@ -90,10 +90,13 @@ for _lang, _text in DESCRIPTION.items():
 
 # 音訊內的揭露。每集由 TTS 重新生成,所以只驗「必須出現的事實」而不是
 # 逐字比對 —— 措辭可以跟當集主題呼應,但「聲音是 AI 合成」這件事不能不見。
+# 「這是 AI 的聲音」這件事必須出現。措辭可以換,事實不能掉。
+# 主詞收 聲音/音訊/語音,動詞收 合成/生成 —— 放寬過一次,因為原本只收
+# 「聲音…合成」,而「本集音訊交由 AI 語音合成」這種寫法會被誤判成漏揭露。
 AUDIO_DISCLOSURE = {
-    "zh": re.compile(r"聲音.{0,8}AI.{0,6}合成"),
-    "en": re.compile(r"voice.{0,40}AI[\s-]?generated|AI[\s-]?generated.{0,25}voice",
-                     re.I),
+    "zh": re.compile(r"(聲音|音訊|語音).{0,10}AI.{0,8}(合成|生成)"),
+    "en": re.compile(r"(voice|audio|speech).{0,40}AI[\s-]?generated"
+                     r"|AI[\s-]?generated.{0,25}(voice|audio|speech)", re.I),
 }
 
 # 給寫稿用的建議措辭(不強制逐字,但「聲音是 AI 合成」一定要在)。
@@ -111,12 +114,27 @@ AUDIO_DISCLOSURE_SUGGESTED = {
           "from my own notes, written while I read the paper.",
 }
 
-# metadata 的揭露相反 —— 這是文字、不會被聽,固定反而更明確、更好稽核。
+# metadata 端的揭露。這是文字、不會被聽,所以固定一份,好稽核。
+#
+# 語氣是 Johnny 自己定的:**要像人講話,不要像法務聲明。** show notes 的
+# 最後一句還是節目的一部分,制式的句子會把前面建立的語氣掐掉。
+# 「因為本人比較害羞」是玩笑,但它不影響揭露 —— 後半句把事實講得很清楚,
+# 而 1.11 要的是聽眾不會誤以為在聽真人,不是要一段嚴肅的聲明。
 META_DISCLOSURE = {
-    "zh": "本集音訊由 AI 語音合成,內容改編自 Johnny 讀論文寫的筆記。",
-    "en": "This episode's audio is AI-generated speech. The content is "
-          "adapted from Johnny's own notes on the paper.",
+    "zh": "因為本人比較害羞,本集音訊交由 AI 語音合成。"
+          "Podcast 內容主要基於我自己讀論文時寫的筆記。",
+    "en": "I'm a little shy, so this episode's audio is AI-generated speech. "
+          "The content is based on notes I wrote while reading the paper myself.",
 }
+
+# 改上面那兩段措辭時,這個檢查會擋下「改到把事實改掉」的情況。
+# 放在 import 時跑:揭露壞了就不該有任何東西跑得起來。
+for _lang, _text in META_DISCLOSURE.items():
+    if not AUDIO_DISCLOSURE[_lang].search(_text):
+        raise AssertionError(
+            f"META_DISCLOSURE[{_lang!r}] 沒有通過 AUDIO_DISCLOSURE 的檢查 —— "
+            f"「這是 AI 合成的聲音」這個事實不見了。Apple Podcasts 1.11 要求"
+            f"音訊與 metadata 兩處都揭露,漏掉可能整集下架。\n  現況:{_text}")
 
 FOOTER = {
     "zh": "這集提到的架構圖和實驗數據,用聽的實在沒辦法。完整的筆記我寫在部落格上:",
