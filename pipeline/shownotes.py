@@ -11,6 +11,7 @@
 用法:uv run python pipeline/shownotes.py out/<slug>/<lang>
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -48,6 +49,44 @@ def timeline(out_dir: Path, rows):
         info = sf.info(str(w))
         t += info.frames / info.samplerate + gap_for(r)
     return marks, t
+
+
+# app 列表與搜尋預覽會截斷,所以直接把截斷後的樣子印出來。這比訂字數上限
+# 有用:重點不是「幾個字」,是切掉之後還剩什麼。中英的每字元資訊量差三倍,
+# 所以門檻分開。
+TITLE_CUT = {"zh": 25, "en": 45}
+SUMMARY_CUT = {"zh": 70, "en": 150}
+
+
+def report_copy(m, article, lang):
+    """把標題與摘要被截斷後的樣子印出來,並提醒關鍵字與條數。
+
+    這些都是提醒而不是 gate —— 文案好不好是使用者的判斷,腳本只負責
+    讓他看到聽眾實際會看到的東西。真正的 gate 只有 AI 揭露與章節數。
+    """
+    t = m["title"]
+    print(f"  標題 {len(t)} 字元:{t}")
+    cut = TITLE_CUT[lang]
+    if len(t) > cut:
+        print(f"    列表只看得到:{t[:cut]}…")
+    if article.lower() not in t.lower():
+        print(f"    ⚠ 標題裡沒有「{article}」—— 那是聽眾搜尋時會打的字,"
+              f"而且應該擺在最前面")
+
+    first = re.split(r"(?<=[。!?])|(?<=[.!?] )", m["summary"].strip())[0]
+    print(f"  摘要第一句 {len(first)} 字元:{first}")
+    cut = SUMMARY_CUT[lang]
+    if len(m["summary"]) > cut:
+        print(f"    預覽只看得到:{m['summary'][:cut]}…")
+    for bad in ("這集我們要來聊", "這一集要聊", "今天要來談",
+                "In this episode, we", "Today we"):
+        if m["summary"].startswith(bad):
+            print(f"    ⚠ 摘要用「{bad}…」開場 —— 那句話零資訊,"
+                  f"而它正好佔掉預覽的位置")
+
+    n = len(m["bullets"])
+    if not 3 <= n <= 5:
+        print(f"    ⚠ 重點 {n} 條,建議 3-5 條")
 
 
 def hhmmss(s: float) -> str:
@@ -100,13 +139,8 @@ def main():
     dst = out_dir / "SHOWNOTES.md"
     dst.write_text("\n".join(L))
 
-    # 標題在 app 列表裡會被截斷,所以直接把截斷後的樣子印出來 ——
-    # 這比訂一個字數上限有用:重點不是「幾個字」,是「被切掉之後還剩什麼」。
-    cut = 25 if lang == "zh" else 45
     print(f"{slug}/{lang}  {hhmmss(total)}  {len(chapters)} 章")
-    print(f"  標題 {len(m['title'])} 字元:{m['title']}")
-    if len(m["title"]) > cut:
-        print(f"  列表只看得到:{m['title'][:cut]}…")
+    report_copy(m, meta["article"], lang)
     print(f"  ✓ 音訊揭露  ✓ metadata 揭露  ✓ 原文連結 {url}")
     print(f"-> {dst}")
 
