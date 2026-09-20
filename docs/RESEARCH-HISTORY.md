@@ -345,7 +345,7 @@ ep001 生成後,使用者聽出「而選項只有四個,我一個一個講」重
 
 - `docs/PLAN.md` —— 使用者的原始規劃,開頭有現況對照表。大部分章節已被實作取代並刪除,
   還有用的是第七章(發布與合規)與第九章(上線路徑)
-- `reference/` —— 從這些坑長出來的判準
+- `.claude/skills/podcast/reference/` —— 從這些坑長出來的判準
 - `docs/TTS-VENDOR-SURVEY.md` —— 使用者自己做的商用 TTS 市場調查
 - `docs/TTS-TEST-SUITE.md` —— 中英夾雜測試集。換引擎時才需要,平常用不到
 

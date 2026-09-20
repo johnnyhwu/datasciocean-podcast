@@ -38,10 +38,13 @@ pipeline/            十支檔案,就是整條流程。每支的檔頭註解就�
   speedup.py         WSOLA 實作。assemble.py import 它,它的 CLI 是一次性用途
   shownotes.py       show notes + 發布前的 AI 揭露 gate
   brand.py           節目層級常數:名稱、網址、揭露措辭、簡介、SHIP_RATE
-reference/           寫稿與調校的判準,**寫稿前必讀**(不是給人讀的背景,是規則)
-  NARRATION.md       怎麼寫給只能用聽的聽眾(第十節專講英文版)
-  NORMALIZATION.md   哪些詞要改寫、哪些不要
-  GEMINI-TTS.md      TTS 實測結論與已知陷阱
+.claude/skills/podcast/
+  SKILL.md           做一集的完整步驟與指令
+  reference/         寫稿與調校的判準,**寫稿前必讀**。跟 skill 放在一起是因為
+                     它們是 skill 步驟 2 的前置條件,不是可以跳過的背景
+    NARRATION.md     怎麼寫給只能用聽的聽眾(第十節專講英文版)
+    NORMALIZATION.md 哪些詞要改寫、哪些不要
+    GEMINI-TTS.md    TTS 實測結論與已知陷阱
 episodes/<slug>/     一集一個目錄,中英兩份 spec 放在一起
   meta.json          集數、對應文章 slug、中英各一份標題/摘要/重點
   zh.json  en.json   逐字稿。`ep001-mem0/zh.json` 是參考範例
@@ -86,7 +89,7 @@ docs/                給人讀的,執行流程不需要
 
 **兩版是兩個獨立節目,不是一個節目的兩種語言。** RSS 的 `<language>`
 是節目層級的單一欄位,混語言會被 Apple 以「Incorrect Language」退件。
-判準與門檻換算表在 `reference/NARRATION.md` 第十節。
+判準與門檻換算表在 `.claude/skills/podcast/reference/NARRATION.md` 第十節。
 
 ## 開場的固定結構
 

@@ -35,7 +35,8 @@ out/<slug>/zh/            out/<slug>/en/
 
 ## 步驟 2:讀判準
 
-寫稿前**一定要讀** `reference/NARRATION.md` 和 `reference/NORMALIZATION.md`。
+寫稿前**一定要讀**這個 skill 目錄底下的 `reference/NARRATION.md` 和
+`reference/NORMALIZATION.md`(絕對路徑:`.claude/skills/podcast/reference/`)。
 要出英文版就再讀 NARRATION.md 的**第十節**(為什麼不能翻譯、門檻換算表)。
 它們是從實際踩過的坑長出來的,不是通則。
 

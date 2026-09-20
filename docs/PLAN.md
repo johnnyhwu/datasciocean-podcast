@@ -14,8 +14,8 @@
 > | 30 秒版本 / 核心設計原則 | 原則仍成立;但「本地 TTS、零 API 費用、15-20 分鐘」已被取代 —— 實際是 Gemini TTS 走 OpenRouter,一集 US$0.01-0.03,長度 30 分鐘 |
 > | 一、節目定位 | ✅ 仍成立 |
 > | 二、Pipeline 總覽 | ✅ 已實作;**檔案結構那節已過時**,以 CLAUDE.md 的目錄為準 |
-> | 三、腳本生成 | ✅ 已實作,本章已刪除 → `reference/NARRATION.md`、`pipeline/validate.py` |
-> | 四、TTS 語音合成 | ✅ 已定案,本章已刪除 → `docs/RESEARCH-HISTORY.md`、`reference/GEMINI-TTS.md` |
+> | 三、腳本生成 | ✅ 已實作,本章已刪除 → `.claude/skills/podcast/reference/NARRATION.md`、`pipeline/validate.py` |
+> | 四、TTS 語音合成 | ✅ 已定案,本章已刪除 → `docs/RESEARCH-HISTORY.md`、`.claude/skills/podcast/reference/GEMINI-TTS.md` |
 > | 五、音訊後製 | ✅ 已實作,本章已刪除 → `pipeline/master.py`、`pipeline/assemble.py`。原章有兩個結論是錯的,刪除時留在原處 |
 > | 六、品牌素材 | ✅ 全部完成。片頭/轉場/片尾定案(Pixabay 授權曲,`music/`),封面定案(`thumbnail/cover-3000.jpg`)。**6.2「固定開場白錄一次重複使用」已否決** —— b01 的固定半句與變動半句在同一句裡,拆開會留下接縫,改為每集 TTS 重新生成 |
 > | 七、發布與合規 | **部分完成,還沒做的在這裡。** 7.3 AI 揭露 ✅、7.4 show notes ✅、7.5 版權音樂 ✅(存證見 `docs/MUSIC.md`);**7.1 上架、7.2 RSS ⬜ 待做** |
@@ -173,8 +173,8 @@ episodes/
 > **本章已刪除,內容移出。** 原本寫的是 beat 制度與寫稿判準的初版構想,
 > 實際執行的判準長成了另一個樣子,兩份並存只會讓人讀錯那一份。
 >
-> - 怎麼寫給只能用聽的聽眾 → `reference/NARRATION.md`
-> - 哪些詞要改寫、哪些不要 → `reference/NORMALIZATION.md`
+> - 怎麼寫給只能用聽的聽眾 → `.claude/skills/podcast/reference/NARRATION.md`
+> - 哪些詞要改寫、哪些不要 → `.claude/skills/podcast/reference/NORMALIZATION.md`
 > - beats.json 的欄位與硬性規則 → `pipeline/validate.py`(規則就是程式碼)
 
 原始構想在 git 歷史裡(commit 7ccee39 之前的 `docs/plan.md`)。
@@ -183,7 +183,7 @@ episodes/
 
 > **本章已刪除,內容移出。** 選型定案:Gemini TTS 走 OpenRouter,音色
 > `Zubenelgenubi`,中英共用。八個引擎的實測過程與被推翻的預期都在
-> `docs/RESEARCH-HISTORY.md`,實測結論與已知陷阱在 `reference/GEMINI-TTS.md`。
+> `docs/RESEARCH-HISTORY.md`,實測結論與已知陷阱在 `.claude/skills/podcast/reference/GEMINI-TTS.md`。
 
 ## 五、音訊後製
 
@@ -457,7 +457,7 @@ podcast 的發現機制很大程度依賴標題。既有的部落格標題風格
 |---|---|
 | 中英文 TTS 引擎選定 | Gemini TTS 走 OpenRouter,中英共用音色 `Zubenelgenubi`。八個引擎的實測見 `docs/RESEARCH-HISTORY.md` |
 | 「英文帶中文腔」是否可接受 | 不採 voice cloning —— 克隆傳得了音色、傳不了口音,三個引擎都證實過 |
-| 逐字稿的展開倍率 | 中文每秒約 4 字;英文的字元數約為中文的 3 倍。見 `reference/NARRATION.md` 第十節 |
+| 逐字稿的展開倍率 | 中文每秒約 4 字;英文的字元數約為中文的 3 倍。見 `.claude/skills/podcast/reference/NARRATION.md` 第十節 |
 | 開場白與片尾說辭 | 不做固定音檔,寫在 beats.json 的 `b01_identity` 與 outro,每集 TTS 重新生成。原因見 6.2 |
 | 片頭 / 轉場 / 片尾音樂 | ✅ Pixabay 授權曲,三段同源,在 `music/`。見 `docs/MUSIC.md` |
 | 節目封面 3000×3000 | ✅ `thumbnail/cover-3000.jpg`,中英共用。見 `docs/COVER-ART.md` |
@@ -469,7 +469,7 @@ podcast 的發現機制很大程度依賴標題。既有的部落格標題風格
 ## 附錄 A:beats 完整結構定義
 
 > **已刪除。** 欄位定義與硬性規則以 `pipeline/validate.py` 為準 ——
-> 文件會過期,擋稿的程式不會。寫稿時要看的是 `reference/NARRATION.md`。
+> 文件會過期,擋稿的程式不會。寫稿時要看的是 `.claude/skills/podcast/reference/NARRATION.md`。
 
 ## 附錄 B:開場音樂 prompt 三方向
 
