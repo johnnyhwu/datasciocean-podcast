@@ -139,7 +139,8 @@ def main():
     dst = out_dir / "SHOWNOTES.md"
     dst.write_text("\n".join(L))
 
-    print(f"{slug}/{lang}  {hhmmss(total)}  {len(chapters)} 章")
+    print(f"{slug}/{lang}  第 {meta['number']} 集  {hhmmss(total)}  "
+          f"{len(chapters)} 章")
     report_copy(m, meta["article"], lang)
     print(f"  ✓ 音訊揭露  ✓ metadata 揭露  ✓ 原文連結 {url}")
     print(f"-> {dst}")

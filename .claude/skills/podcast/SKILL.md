@@ -9,12 +9,17 @@ description: 把 Johnny 部落格的一篇技術文章做成完整的 podcast,�
 而且**兩版都要跑完整的 validate 與 verify** —— 不要只驗中文那版。
 使用者若只要其中一版,他會明講。
 
-一集用一個 slug(例如 `ep001-mem0`):
+一集用一個 slug,格式是 `ep<三位數>-<短名>`(例如 `ep001-mem0`)。
+短名通常就是部落格文章的目錄名。
 
 ```
-episodes/<slug>/zh.json   episodes/<slug>/en.json
+episodes/<slug>/zh.json   episodes/<slug>/en.json   episodes/<slug>/meta.json
 out/<slug>/zh/            out/<slug>/en/
 ```
+
+**這個路徑形狀是有意義的,不要自己改。** `assemble.py` 與 `shownotes.py`
+都從 `out/<slug>/<lang>` 反推 slug 與語言,再去讀 `episodes/<slug>/<lang>.json`。
+把輸出放到別的地方,它們會找不到逐字稿。
 
 **每一步做完先回報再繼續**,不要一路衝到底 ——
 逐字稿是使用者最在意的部分,他會想在合成前看過。
@@ -186,7 +191,8 @@ uv run python pipeline/verify.py out/<slug>/zh
 | 同音字差異(在/再、記/計) | **誤報,不用理** |
 | 簡繁、數字寫法差異 | **誤報**,比對時已正規化,還出現代表規則有漏 |
 | 英文數字詞 vs 阿拉伯數字、`arXiv` 轉成 "Archive" | **誤報**,verify.py 已折算 |
-| 語速超出區間(中文 4.0-9.5,英文 11.0-20.0 字元/秒) | 請使用者用耳朵確認,刻意留白的金句可以慢 |
+| 標記「偏慢」或「過快」(中文 4.0-9.5,英文 11.0-20.0 字元/秒) | 請使用者用耳朵確認,刻意留白的金句可以慢 |
+| 標記「**失控**」(中文 < 3.5,英文 < 9.0 字元/秒) | **不要問使用者,直接重骰。** 音檔長度遠超過文字量,通常是尾巴掛了一段幻聽或長靜音 |
 
 改了 `verify.py` 的正規化規則之後,用
 `uv run python pipeline/rescore.py <out_dir> --write` 重算,不要重跑 STT;
@@ -246,8 +252,20 @@ TTS 回傳的 PCM16 有少量樣本頂在滿刻度(ep001 中文版 69 段裡有 
 
 ## 步驟 9:show notes(兩版都要)
 
-先寫 `episodes/<slug>/meta.json`(中英各一份標題、摘要、3-5 個重點,
-外加 `article` 指向部落格的文章目錄名):
+先寫 `episodes/<slug>/meta.json`。六個欄位都是必要的,缺一個會 KeyError:
+
+```json
+{
+  "number": 1,
+  "article": "mem0",
+  "zh": { "title": "…", "summary": "…", "bullets": ["…", "…", "…"] },
+  "en": { "title": "…", "summary": "…", "bullets": ["…", "…", "…"] }
+}
+```
+
+`article` 是部落格文章的目錄名,用來組原文連結,**不是 slug** ——
+`ep001-mem0` 的 `article` 是 `mem0`。`number` 目前只印出來給上架時填,
+腳本不拿它做事,但要跟 slug 的編號一致。
 
 ```bash
 uv run python pipeline/shownotes.py out/<slug>/zh
