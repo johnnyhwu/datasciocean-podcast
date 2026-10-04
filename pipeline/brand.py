@@ -136,7 +136,7 @@ AUDIO_DISCLOSURE_SUGGESTED = {
 # 「因為本人比較害羞」是玩笑,但它不影響揭露 —— 後半句把事實講得很清楚,
 # 而 1.11 要的是聽眾不會誤以為在聽真人,不是要一段嚴肅的聲明。
 META_DISCLOSURE = {
-    "zh": "因為本人比較害羞,本集音訊交由 AI 語音合成。"
+    "zh": "因為本人比較害羞，本集音訊交由 AI 語音合成。"
           "Podcast 內容主要基於我自己讀論文時寫的筆記。",
     "en": "I'm a little shy, so this episode's audio is AI-generated speech. "
           "The content is based on notes I wrote while reading the paper myself.",
@@ -152,7 +152,7 @@ for _lang, _text in META_DISCLOSURE.items():
             f"音訊與 metadata 兩處都揭露,漏掉可能整集下架。\n  現況:{_text}")
 
 FOOTER = {
-    "zh": "這集提到的架構圖和實驗數據,用聽的實在沒辦法。完整的筆記我寫在部落格上:",
+    "zh": "這集提到的架構圖和實驗數據，用聽的實在沒辦法。完整的筆記我寫在部落格上：",
     "en": "The architecture diagrams and the experiment tables just don't "
           "work in audio. The full write-up is on the blog:",
 }

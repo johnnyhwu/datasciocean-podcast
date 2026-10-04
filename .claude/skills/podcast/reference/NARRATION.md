@@ -42,14 +42,10 @@
 
 ## 三、結構性約束
 
-不要在 prompt 裡寫「請講得生動一點」,而是讓 schema 逼出變化。
-`pipeline/validate.py` 會強制檢查:
-
-- 連續 `context`/`mechanism`/`evidence`/`analogy` **不得超過 4 段**,
-  中間必須插 `signpost`、`recap` 或 `turn`
-- 每集至少 **2 個 recap**、**3 個 signpost**(30 分鐘的集數實際用到 6 和 14)
-- 至少 **3 個短 beat(<60 字)**,長度標準差 ≥ 40
-- 語氣提示至少 5 種
+不要在 prompt 裡寫「請講得生動一點」,而是讓 schema 逼出變化。`pipeline/validate.py`
+強制檢查:連續解說段的上限(中間必須插 `signpost`、`recap` 或 `turn`)、
+`recap` 與 `signpost` 的下限、短 beat 的數量與長度變異、語氣提示的種類。
+**門檻以 `validate.py` 為準**,這裡不重複列數字。
 
 ## 四、recap 的寫法
 
@@ -110,16 +106,10 @@ ep001 有四處:
 但上表後三組是**換句話說的重複**,程式抓不到 ——
 所以插完路標一定要自己把相鄰兩段連起來讀一次。
 
-## 九、停頓(由 stitch.py 依 role 自動處理)
+## 九、停頓
 
-| role | 之後停頓 |
-|---|---|
-| `hook` | 1.2s |
-| `promise` | 1.0s |
-| `turn` / `payoff` | 1.0s |
-| `identity` / `recap` | 0.9s |
-| `signpost` | **0.4s**(路標要接得緊,停久了反而斷) |
-| 其他 | 0.6s |
+停頓由 `stitch.py` 的 `gap_for` 依 role 自動處理,數字以程式為準。
+寫稿時只需要知道一件事:`signpost` 的停頓最短,路標要接得緊,停久了反而斷。
 
 ---
 

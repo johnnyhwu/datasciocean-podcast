@@ -74,7 +74,7 @@ def report_copy(m, article, lang):
         print(f"    ⚠ 標題裡沒有「{article}」—— 那是聽眾搜尋時會打的字,"
               f"而且應該擺在最前面")
 
-    first = re.split(r"(?<=[。!?])|(?<=[.!?] )", m["summary"].strip())[0]
+    first = re.split(r"(?<=[。！？!?])|(?<=[.!?] )", m["summary"].strip())[0]
     print(f"  摘要第一句 {len(first)} 字元:{first}")
     cut = SUMMARY_CUT[lang]
     if len(m["summary"]) > cut:
@@ -88,6 +88,42 @@ def report_copy(m, article, lang):
     n = len(m["bullets"])
     if not 3 <= n <= 5:
         print(f"    ⚠ 重點 {n} 條,建議 3-5 條")
+
+
+CJK = "\u4e00-\u9fff"
+# 中文旁邊的半形標點(中文 show notes 一律全形),以及英文裡誤用的全形標點。
+# 時間戳、小數點、網址不在其中:它們旁邊沒有中文。
+HALF_NEAR_CJK = re.compile(rf"[{CJK}][,?!:;()]|[,?!:;()][{CJK}]")
+FULL_IN_EN = re.compile(r"[，。？！：；（）]")
+LEAD_BRACKET = re.compile(r"^(?:【[^】]*】|\[[^\]]*\])\s*")
+CLAUSE_END = {"zh": re.compile(r"[？?，,：:；;。]"), "en": re.compile(r"[?:,;.]")}
+
+
+def report_style(m, chapters, lang):
+    """提醒式檢查,不擋產出:標點用對語言、標題前段讀得完一個子句。
+
+    標點:這是會反覆犯的錯,不能靠記得。中文旁邊出現半形 `,?!:;()`、
+    或英文裡出現全形標點,都印出位置。
+    標題:列表只看得到前 N 字(見 TITLE_CUT)。把開頭的【名稱】略過之後,
+    第一個子句要在 N 字內收尾,否則列表上看到的是一句沒講完的話。
+    """
+    items = [("標題", m["title"]), ("摘要", m["summary"])]
+    items += [(f"重點{i}", b) for i, b in enumerate(m["bullets"], 1)]
+    items += [("章節", c) for c in chapters]
+    rx = HALF_NEAR_CJK if lang == "zh" else FULL_IN_EN
+    bad = [(name, t[max(0, x.start() - 6):x.end() + 6])
+           for name, t in items for x in rx.finditer(t)]
+    if bad:
+        kind = "中文旁的半形標點" if lang == "zh" else "英文裡的全形標點"
+        print(f"    ⚠ {kind} {len(bad)} 處:"
+              + "；".join(f"{n}「…{c}…」" for n, c in bad[:3])
+              + (" …" if len(bad) > 3 else ""))
+
+    t = m["title"]
+    start = LEAD_BRACKET.match(t).end() if LEAD_BRACKET.match(t) else 0
+    hit = CLAUSE_END[lang].search(t, start)
+    if not hit or hit.start() >= TITLE_CUT[lang]:
+        print(f"    ⚠ 標題前 {TITLE_CUT[lang]} 字讀不完一個子句 —— 列表上看到的是半句話")
 
 
 def hhmmss(s: float) -> str:
@@ -144,6 +180,7 @@ def main():
     print(f"{slug}/{lang}  第 {meta['number']} 集  {hhmmss(total)}  "
           f"{len(chapters)} 章")
     report_copy(m, meta["article"], lang)
+    report_style(m, [r["chapter"] for r in chapters], lang)
     print(f"  ✓ 音訊揭露  ✓ metadata 揭露  ✓ 原文連結 {url}")
     print(f"-> {dst}")
 
