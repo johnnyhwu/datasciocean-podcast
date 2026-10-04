@@ -21,7 +21,7 @@
 人聲的第一個字疊在音樂尾巴上 —— 這是廣播的標準做法,因為完全沒有重疊時
 中間那道縫會聽成「上一段結束了」而不是「節目開始了」。
 """
-import argparse, json, sys
+import argparse, json, subprocess, sys
 from pathlib import Path
 import numpy as np, soundfile as sf
 from scipy.signal import resample_poly
@@ -29,7 +29,7 @@ from scipy.ndimage import maximum_filter1d, minimum_filter1d
 
 sys.path.insert(0, str(Path(__file__).parent))
 from master import integrated_lufs, limit_true_peak, TARGET_LUFS
-from brand import SHIP_RATE
+from brand import ship_rate
 from stitch import gap_for
 
 SR = 44100
@@ -341,27 +341,39 @@ def main():
     ap.add_argument("--stings", type=int, default=None,
                     help="轉場次數,預設依整集長度決定(約每 9 分鐘一次)")
     ap.add_argument("-o", "--output", default=None)
-    ap.add_argument("--rate", type=float, default=SHIP_RATE,
-                    help=f"加速倍率,預設 {SHIP_RATE}(交付速度)。只加速人聲,音樂原速")
+    ap.add_argument("--rate", type=float, default=None,
+                    help="人聲倍率,預設是這一集這個語言的交付速度(brand.ship_rate)。"
+                         "只拉伸人聲,音樂原速")
     ap.add_argument("--music-rel", type=float, default=MUSIC_REL)
     ap.add_argument("--duck", type=float, default=None)
     a = ap.parse_args()
-    d = Path(a.out_dir)
+    d = Path(a.out_dir).resolve()
+    lang, slug = d.name, d.parent.name
+    target = ship_rate(lang, slug)
+    rate = target if a.rate is None else a.rate
     intro = load(a.intro)[0] if a.intro else None
     outro = load(a.outro)[0] if a.outro else None
     sting = load(a.sting)[0] if a.sting else None
-    y, info = episode(d, intro, outro, sting, n_stings=a.stings, rate=a.rate)
-    info["rate"] = a.rate
-    tag = "" if a.rate == 1.0 else f"_x{a.rate:g}"
-    out = Path(a.output) if a.output else d / f"FULL_EPISODE_mixed{tag}.wav"
+    y, info = episode(d, intro, outro, sting, n_stings=a.stings, rate=rate)
+    info["rate"] = rate
+    ship = abs(rate - target) < 1e-9
+    # 交付檔的名字固定是 <slug>-<lang>.wav;別的倍率只是試聽,檔名帶倍率以免誤傳
+    out = Path(a.output) if a.output else (
+        d / f"{slug}-{lang}.wav" if ship else d / f"FULL_EPISODE_mixed_x{rate:g}.wav")
     sf.write(str(out), y, SR)
-    ship = abs(a.rate - SHIP_RATE) < 1e-9
-    print(f"-> {out}" + ("   ← 交付用" if ship else ""))
+    print(f"-> {out}" + ("   ← 交付用" if ship else f"   (試聽用,交付速度是 {target}x)"))
     if ship:
         # 時間戳只有交付速度那份能發布 —— 別的速度的章節時間對不上聽眾聽到的檔
         (d / "MIX.json").write_text(json.dumps(info, ensure_ascii=False, indent=1,
                                                default=float))
-        print(f"-> {d / 'MIX.json'}  ({len(info['marks'])} 段的時間戳 @ {a.rate}x)")
+        print(f"-> {d / 'MIX.json'}  ({len(info['marks'])} 段的時間戳 @ {rate}x)")
+        m4a = out.with_suffix(".m4a")
+        try:   # afconvert 是 macOS 內建,專案刻意不用 ffmpeg
+            subprocess.run(["afconvert", "-f", "m4af", "-d", "aac", "-b", "128000",
+                            str(out), str(m4a)], check=True)
+            print(f"-> {m4a}   ← 上傳用(128k AAC)")
+        except (FileNotFoundError, subprocess.CalledProcessError) as e:
+            print(f"  ⚠ m4a 沒轉成({e.__class__.__name__}),自己跑 afconvert")
 
 
 if __name__ == "__main__":

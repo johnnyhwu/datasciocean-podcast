@@ -9,13 +9,16 @@
 ## 一句話流程
 
 文章 → beats.json(結構化逐字稿)→ `validate` 擋錯 → Gemini TTS 逐段合成 →
-Whisper 回轉驗證 → 拼接加停頓 → 人聲加速 1.1x → 混入片頭/轉場/片尾 +
+Whisper 回轉驗證 → 拼接加停頓 → (需要時)人聲變速 → 混入片頭/轉場/片尾 +
 響度正規化 → show notes。中英兩版各走一次,**兩版都要驗證**。
 
 ## 環境
 
 - **絕不弄髒系統。** 一律 `uv run`,套件記在 `pyproject.toml`,
   Python 版本由 `.python-version` 指定。**不要 `pip install`。**
+- **部落格原文一律讀 `blog/`(submodule),開工前先 `git submodule update --init --remote blog`。**
+  不要去讀 `~/Desktop` 上別處的本機副本 —— 那份可能比遠端新或舊,
+  而 podcast 的原文連結指向的是已發布的版本。
 - **不要引入系統依賴。** 這個專案刻意沒有 ffmpeg / sox / rubberband / pydub。
   響度、變速、混音全部是 numpy + scipy 自己實作,格式轉換用內建的 `afconvert`。
   看到任何要 ffmpeg 的方案就換掉,不要「先裝一下」。
@@ -33,11 +36,11 @@ pipeline/            十支檔案,就是整條流程。每支的檔頭註解就�
   rescore.py         改了正規化規則後重算分數,不必重跑 STT
   stitch.py          拼接 + 依 role 加停頓(只用來試聽節奏)
   assemble.py        混音 + 正規化:人聲 + 片頭 + 章節轉場 + 片尾。
-                     --rate 預設 1.1x;加速在混音前做,只拉伸人聲
+                     交付速度預設 1.0x;變速在混音前做,只拉伸人聲
   master.py          BS.1770-4 響度量測與正規化(純 numpy,含 --measure)
   speedup.py         WSOLA 實作。assemble.py import 它,它的 CLI 是一次性用途
   shownotes.py       show notes + 發布前的 AI 揭露 gate
-  brand.py           節目層級常數:名稱、網址、揭露措辭、簡介、SHIP_RATE
+  brand.py           節目層級常數:名稱、網址、揭露措辭、簡介、各語言的交付速度
 .claude/skills/podcast/
   SKILL.md           做一集的完整步驟與指令
   reference/         寫稿與調校的判準,**寫稿前必讀**。跟 skill 放在一起是因為
@@ -45,8 +48,9 @@ pipeline/            十支檔案,就是整條流程。每支的檔頭註解就�
     NARRATION.md     怎麼寫給只能用聽的聽眾(第十節專講英文版)
     NORMALIZATION.md 哪些詞要改寫、哪些不要
     GEMINI-TTS.md    TTS 實測結論與已知陷阱
+blog/                部落格原文,git submodule(johnnyhwu.github.io 的 main,淺層)
 episodes/<slug>/     一集一個目錄,中英兩份 spec 放在一起
-  meta.json          集數、對應文章 slug、中英各一份標題/摘要/重點
+  meta.json          集數、對應文章、中英各一份標題/摘要/重點;可選 ship_rate
   zh.json  en.json   逐字稿。`ep001-mem0/zh.json` 是參考範例
 out/<slug>/{zh,en}/  該集的所有產出(gitignore)
 music/               片頭、轉場、片尾的成品(進版控,品牌資產)
@@ -71,7 +75,7 @@ docs/                給人讀的,執行流程不需要
 | STT | `openai/whisper-large-v3-turbo`(走 `mlx_audio`) | 輸出繁體、精度足夠、不需要 torch |
 | 音樂 | Jonas Blakewood / Presentation(Pixabay) | 三輪盲測。片頭/轉場/片尾同源,見 `docs/MUSIC.md` |
 | 響度 | -19 LUFS 單聲道、true peak ≤ -1 dBTP | -16 是**立體聲**的值。AAC 編碼會把峰值推上來,實測吃掉 0.2-0.4 dB |
-| 交付速度 | 1.1x(`brand.py` 的 `SHIP_RATE`) | TTS 原速偏慢。只加速人聲,音樂原速 |
+| 交付速度 | 中英預設都是 1.0x(`brand.py` 的 `SHIP_RATE`,各語言各一個值;單集用 `meta.json` 的 `ship_rate` 覆寫) | Johnny 聽過 0.9 與 1.0 後選定。非 1.0 時只變速人聲,音樂原速 |
 
 **四個不要:**
 
@@ -126,7 +130,14 @@ b04 之後                正文
 - 使用者用**繁體中文**溝通,回覆也用繁體中文。
 - **他的耳朵是最終判準。** STT 分數、頻譜、相關係數都只是篩選器。
   量測可以說明「為什麼」,不能推翻「好不好聽」 —— 音樂選型三輪都是這樣收斂的。
-- 花錢的操作(TTS API)**先講預估成本再跑**。一集中文約 US$0.01,英文約 US$0.03。
+- **預設一路做完**,只在花錢前(講預估成本)與全部完成後(總結)停下來;
+  他說「逐步確認」才改成每步回報。背景合成**每 15 分鐘查一次進度**,他已授權。
+- 花錢的操作(TTS API)**先講預估成本再跑**。成本幾乎完全由輸出音訊長度
+  決定(約 US$0.03/分鐘音訊),跟輸入文字多寡無關 —— 一集約 30-40 分鐘音訊,
+  實際約 US$1-1.5。合成前後各查一次 OpenRouter credits 對帳(細節見 skill 步驟 6)。
+- **部落格原文自己有矛盾的地方,podcast 裡不講。** 我們只有原文、沒有論文全文,
+  不替原文裁決;略過了什麼在總結裡列出。自己的推測可以講,但要明說是推測。
+- 做完要**清掉這次的實驗與暫存檔**,並明確告訴他最終交付檔是哪一個(skill 步驟 10)。
 - 給他比較用的東西就做成真的情境。片段脫離上下文聽不出差別,
   音樂是放進完整節目裡比才選得出來的。
 

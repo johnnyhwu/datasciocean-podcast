@@ -18,7 +18,7 @@ from pathlib import Path
 import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).parent))
-from brand import (AUDIO_DISCLOSURE, FOOTER, META_DISCLOSURE, SHIP_RATE, SHOW)
+from brand import (AUDIO_DISCLOSURE, FOOTER, META_DISCLOSURE, SHOW, ship_rate)
 from stitch import gap_for          # 停頓規則只有一份,時間戳才對得上音檔
 
 
@@ -34,11 +34,12 @@ def timeline(out_dir: Path, rows):
     if mix.exists():
         d = json.loads(mix.read_text())
         rate = d.get("rate", 1.0)
-        if abs(rate - SHIP_RATE) > 1e-9:
+        target = ship_rate(out_dir.name, out_dir.parent.name)
+        if abs(rate - target) > 1e-9:
             raise SystemExit(
-                f"✗ MIX.json 是 {rate}x 的時間軸,交付速度是 {SHIP_RATE}x。\n"
-                f"  章節時間會差約 {abs(1 - rate / SHIP_RATE) * 100:.0f}%。\n"
-                f"  重跑:assemble.py {out_dir} --intro … --rate {SHIP_RATE}")
+                f"✗ MIX.json 是 {rate}x 的時間軸,交付速度是 {target}x。\n"
+                f"  章節時間會差約 {abs(1 - rate / target) * 100:.0f}%。\n"
+                f"  重跑:assemble.py {out_dir} --intro … --sting …(不帶 --rate)")
         return d["marks"], d["total_s"]
     t, marks = 0.0, {}
     for r in rows:
@@ -123,7 +124,8 @@ def main():
                          f"在 beats 的 signpost 段加 \"chapter\" 欄位。")
 
     marks, total = timeline(out_dir, rows)
-    url = show["post"].format(article=meta["article"])
+    url = show["post"].format(category=meta.get("category", "paper-intro"),
+                              article=meta["article"])
 
     L = [f"# {m['title']}", "", m["summary"], ""]
     L += [f"**{'這集你會知道' if lang == 'zh' else 'In this episode'}**", ""]

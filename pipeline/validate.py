@@ -13,12 +13,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from verify import detect_lang   # 語言判準只有一份,避免兩支腳本各判各的
-from brand import AUDIO_DISCLOSURE, AUDIO_DISCLOSURE_SUGGESTED
+from brand import AUDIO_DISCLOSURE, AUDIO_DISCLOSURE_SUGGESTED, ship_rate
 
 ROLES = {"hook", "identity", "promise", "signpost", "context", "mechanism",
          "analogy", "evidence", "turn", "recap", "critique", "opinion",
          "payoff", "outro"}
 BODY = {"context", "mechanism", "evidence", "analogy"}
+
+# Gemini TTS 的成本幾乎完全由輸出音訊長度決定(見 reference/GEMINI-TTS.md),
+# 跟輸入字元數無關。ep002:38 分鐘 US$1.15;ep003:31 分鐘 US$0.96。
+COST_PER_MIN = 0.03
 
 # Gemini 實測:提示相對正文太長會穩定回 502 空音訊。
 # 45 字提示配 24 字正文必掛,配 32 字正文正常。留 2.0 倍的安全邊際。
@@ -155,8 +159,11 @@ def main():
 
     tot = sum(L)
     lo, hi = cfg["cpm"]
+    rate = ship_rate(lang, p.resolve().parent.name)
+    m_lo, m_hi = tot / hi, tot / lo          # TTS 原速的人聲分鐘數
     print(f"{p.name}[{lang}]:{len(items)} beats,{tot} 字元,"
-          f"預估 {tot/hi:.0f}-{tot/lo:.0f} 分鐘,約 US${tot/1e6:.3f}")
+          f"交付約 {m_lo/rate:.0f}-{m_hi/rate:.0f} 分鐘({rate}x),"
+          f"合成約 US${m_lo*COST_PER_MIN:.1f}-{m_hi*COST_PER_MIN:.1f}")
     print(f"長度 平均{statistics.mean(L):.0f} 標準差{statistics.stdev(L):.0f} "
           f"最短{min(L)} 最長{max(L)}")
     print("role:", dict(c))

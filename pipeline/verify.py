@@ -219,6 +219,22 @@ def spoken_form(s: str, lang: str = "zh") -> str:
     L.L.M. 唸出來 STT 會寫成 LLM,點要先去掉。"""
     return norm_for_compare(s, lang)
 
+def leaks_prompt(style: str, got: str, expected: str, lang: str) -> bool:
+    """轉錄裡是否出現風格提示的句子 —— TTS 把指示唸出來了。
+
+    這跟「疑似幽靈音」不同:幽靈音常是 Whisper 自己編的,這個是提示的原句
+    逐字出現在轉錄裡,而且稿子本身沒有那句話,所以一定是 TTS 的問題,
+    不用看語速,直接重骰。可能出現在開頭(ep003 b21)也可能在結尾。
+    """
+    st = spoken_form(style, lang)
+    if not st:
+        return False
+    m = difflib.SequenceMatcher(None, st, got, autojunk=False) \
+        .find_longest_match(0, len(st), 0, len(got))
+    return m.size >= min(8 if lang == "zh" else 20, len(st)) \
+        and st[m.a:m.a + m.size] not in expected
+
+
 def _load_stt():
     from mlx_audio.stt.utils import load_model
     print(f"載入 STT: {STT_MODEL}", flush=True)
@@ -245,7 +261,18 @@ def main():
         if not w.exists():
             print(f"[{i:2d}/{len(rows)}] {r['id']:26s} 缺音檔,跳過", flush=True)
             continue
-        res = stt.generate(str(w), language=lang)
+        # temperature 固定 0.0(關掉 fallback 取樣)+ condition_on_previous_text=False
+        # + hallucination_silence_threshold —— 這三個合起來才有效,任一個漏掉都不夠。
+        # 起因:預設 temperature 是 (0.0, 0.2, ..., 1.0) 的 fallback tuple,Whisper
+        # 對音檔尾端的短暫低能量段沒信心時會往上調溫度重試,調高溫度就是在取樣,
+        # 同一個音檔重跑三次會編出三種不同的幻覺文字(親眼測過:同一份 wav,
+        # 幻覺過「請訂閱轉發打賞」這種 YouTube 片尾語,也幻覺過別的亂碼)。
+        # 這代表「疑似幽靈音」這個警示以前有不小比例是 STT 自己編的,不是 TTS
+        # 真的講錯——之前 ep002 因此重骰了好幾段其實沒問題的音檔,白花了成本。
+        # 固定 temperature=0.0 讓解碼可重現,同一份音檔重跑結果一致。
+        res = stt.generate(str(w), language=lang, temperature=0.0,
+                           condition_on_previous_text=False,
+                           hallucination_silence_threshold=2.0)
         got = res.text if hasattr(res, "text") else str(res)
 
         a, b = spoken_form(r["text"], lang), spoken_form(got, lang)
@@ -264,6 +291,8 @@ def main():
         elif cps and cps < sp["low"]:    flags.append("偏慢")
         if ratio < 0.90:             flags.append("STT差異大")
         if len(b) > len(a) * 1.15:   flags.append("疑似幽靈音")
+        if leaks_prompt(r.get("style", ""), b, a, lang):
+            flags.append("提示洩漏")
 
         mark = "○" if not flags else "⚠ " + ",".join(flags)
         print(f"[{i:2d}/{len(rows)}] {r['id']:26s} {cps:5.1f}{unit} sim={ratio:.3f} {mark}",

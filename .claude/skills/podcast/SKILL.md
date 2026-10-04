@@ -21,22 +21,56 @@ out/<slug>/zh/            out/<slug>/en/
 都從 `out/<slug>/<lang>` 反推 slug 與語言,再去讀 `episodes/<slug>/<lang>.json`。
 把輸出放到別的地方,它們會找不到逐字稿。
 
-**每一步做完先回報再繼續**,不要一路衝到底 ——
-逐字稿是使用者最在意的部分,他會想在合成前看過。
+## 工作模式:預設一路做完
+
+**預設從頭做到尾**,只在兩個時間點停下來說話:
+1. **花錢之前**(步驟 6 合成)先講預估成本;
+2. **全部做完之後**給一份總結(見最後一節「交付時要告訴使用者」)。
+
+使用者明講「逐步確認」「逐字稿先給我看」時,才切回逐步模式:
+每步做完先回報,逐字稿通過 validate 後等他確認才合成。
+
+一路做完不代表可以跳過檢查 —— validate、verify 的 `✗` 與標記照樣要處理。
 
 ---
 
 ## 步驟 1:讀文章
 
-文章在 `~/Desktop/johnnyhwu.github.io/content/posts/paper-intro/<slug>/index.zh-tw.md`。
+**先更新部落格,再讀文章**(每一集開工前都要做):
+
+```bash
+git submodule update --init --remote blog
+```
+
+部落格是本 repo 的 submodule(`blog/`,指向 `johnnyhwu/johnnyhwu.github.io` 的 main,淺層 clone),
+這行會拉到遠端最新版。**只有已經推上 GitHub 的文章讀得到** ——
+找不到文章時,先問使用者是不是還沒 push,不要去讀別處的本機副本。
+
+文章在 `blog/content/posts/<category>/<slug>/index.zh-tw.md`。
+`<category>` 多半是 `paper-intro`,也有 `ai-concept` 等 —— 這個目錄名要填進
+`meta.json` 的 `category`,原文連結才組得對。
 
 使用者可能給 slug、標題關鍵字、或整個 URL。找不到就用
-`find ~/Desktop/johnnyhwu.github.io/content -name "*.zh-tw.md" | grep -i <關鍵字>`。
+`find blog/content -name "*.zh-tw.md" | grep -i <關鍵字>`。
 
 **整篇讀完再動筆。** 特別注意:
-- 圖表裡的數字(`{{< image >}}` 的 `alt` 與 `caption` 常含關鍵數據)
+- 圖表裡的數字(`{{< image >}}` 的 `alt` 與 `caption` 常含關鍵數據)。
+  **稿裡要念出來的關鍵數字,回頭對文章目錄裡的原圖**(表格 png 用 Read 就能看),
+  圖說跟圖本身不一定一致
 - 作者自己的評論與質疑(這些是 `opinion` / `critique` beat 的素材)
 - 論文沒解釋、但你能推論的地方(這是最有價值的內容,但**必須標明是推論**)
+
+### 原文有疑慮的地方:不放進 podcast
+
+你只有部落格原文,沒有論文全文,所以**不要自己去裁決**原文哪裡對、哪裡錯。
+遇到**原文自己的矛盾** —— 同一個數字前後不同、圖說跟正文對不上、
+結論跟表格對不上、圖與文字不一致 —— 稿裡就**刻意不講那一點**
+(只講沒有爭議的部分),避免有疑慮的內容進入節目。
+
+- 作者原文的批評與質疑**不算疑慮**,照常講,那是節目的賣點
+- **自己的推測可以講**,但一定要明說「這是我自己的推測」(見 NARRATION.md 第六節)
+- 略過了什麼要**記下來**,做完時在總結裡列出,讓使用者決定要不要回頭修部落格。
+  不要悄悄拿掉,也不要去改他的部落格
 
 ## 步驟 2:讀判準
 
@@ -155,11 +189,12 @@ uv run python pipeline/validate.py episodes/<slug>/en.json
 ```
 
 語言自動判斷,不用下參數;語速、短 beat、重複判定的門檻會跟著切換。
+第一行印的是**依交付速度換算的長度**與**合成成本**(約 US$0.03/分鐘音訊)。
 
 有 `✗` 就必須修到過。`⚠` 是提醒,通常可以放行
 (「正文短於提示」那條是已知的,tts.py 會自動降級處理)。
 
-**這一步過了再給使用者看逐字稿,等他確認後才合成。**
+通過後直接進步驟 6(逐步模式才先給使用者看逐字稿)。
 
 ## 步驟 6:合成(兩版各跑一次)
 
@@ -168,9 +203,17 @@ uv run python pipeline/tts.py episodes/<slug>/zh.json out/<slug>/zh \
     --model google/gemini-3.1-flash-tts-preview --voice Zubenelgenubi --pcm
 ```
 
-- 69 段約需 **30-40 分鐘**,用 `run_in_background` 跑,不要卡住對話。
-- 成本:中文約 **US$0.01**,英文約 **US$0.03**(同樣內容英文字元數約 3 倍),
-  先跟使用者講。
+- 69 段約需 **30-40 分鐘**,**背景啟動**(`nohup … &` 或 `run_in_background`),
+  不要卡住對話。
+- **成本:** 輸出音訊長度才是大頭,約 **US$0.03/分鐘音訊**,跟輸入文字多寡無關
+  (為什麼見 `reference/GEMINI-TTS.md`)。開跑前先講估計(validate 第一行有),
+  並用 `curl -s https://openrouter.ai/api/v1/credits -H "Authorization: Bearer $OPENROUTER_API_KEY"`
+  記下**開跑前的 `total_usage`**,合成後再查一次,差額就是實際花費,總結時回報。
+  實測:ep003 中文 31 分鐘 US$0.956。
+- **進度:每 15 分鐘看一次**,使用者已授權。背景跑
+  `sleep 900; ls out/<slug>/<lang>/b*.wav | wc -l; tail -3 out/<slug>/tts_<lang>.log`
+  (時間到會喚醒你)。**只用這類唯讀指令**,不要寫輪詢迴圈,也不要為了看進度
+  開 `dangerouslyDisableSandbox`。把 log 導到 `out/<slug>/tts_<lang>.log`
 - **音色兩版共用 `Zubenelgenubi`**,不需要另外挑。
 - 中斷後加 `--resume` 續跑,已存在的音檔會沿用。
 - 腳本內建重試與提示降級,單段失敗會記錄後跳過,不會中斷整集。
@@ -186,8 +229,10 @@ uv run python pipeline/verify.py out/<slug>/zh
 
 | 現象 | 處理 |
 |---|---|
-| 結尾冒出無關字詞(幽靈音) | **刪掉該段 wav,加 `--resume` 重跑**(沒有 seed,重跑就是重骰) |
-| 專有名詞唸錯 | 同上先重骰;連兩次都錯就改 beats.json 的寫法 |
+| 標記「**提示洩漏**」,或 `transcribed` 裡逐字出現風格提示(「請用台灣人的口音說話…」) | **一定是 TTS 把指示唸出來了**,不論位置(ep003 的 `b21` 出在開頭)、不論語速 —— **刪掉該段 wav,加 `--resume` 重跑**(沒有 seed,重跑就是重骰) |
+| 結尾冒出無關字詞(幽靈音),但 `chars_per_sec` 在正常區間 | **大機率是 Whisper 自己幻覺出來的,不是 TTS 講錯**——音檔長度跟預期文字量對得上,幾百毫秒塞不下那麼多亂碼字。見 `reference/GEMINI-TTS.md` 第七節。不用急著重骰 |
+| 結尾冒出無關字詞(幽靈音),而且 `chars_per_sec` 明顯偏慢或失控 | 這才是音檔真的比預期長,**刪掉該段 wav,加 `--resume` 重跑** |
+| 專有名詞唸錯 | 先重骰;連兩次都錯就改 beats.json 的寫法 |
 | 同音字差異(在/再、記/計) | **誤報,不用理** |
 | 簡繁、數字寫法差異 | **誤報**,比對時已正規化,還出現代表規則有漏 |
 | 英文數字詞 vs 阿拉伯數字、`arXiv` 轉成 "Archive" | **誤報**,verify.py 已折算 |
@@ -201,48 +246,47 @@ uv run python pipeline/verify.py out/<slug>/zh
 ## 步驟 8:混音與輸出(兩版都要)
 
 ```bash
-uv run python pipeline/stitch.py out/<slug>/zh          # 先聽純人聲,確認節奏
+uv run python pipeline/stitch.py out/<slug>/zh          # 選用:先聽純人聲,確認節奏
 uv run python pipeline/assemble.py out/<slug>/zh \
   --intro music/intro.wav --outro music/outro.wav --sting music/sting.wav
-uv run python pipeline/assemble.py out/<slug>/zh \
-  --intro music/intro.wav --outro music/outro.wav --sting music/sting.wav --rate 1.0
-afconvert -f m4af -d aac -b 128000 \
-  out/<slug>/zh/FULL_EPISODE_mixed_x1.1.wav out/<slug>/zh/<slug>-zh.m4a
 ```
 
-**交付速度是 1.1x,不是 1.0x。** `--rate` 的預設值就是 `brand.py` 的
-`SHIP_RATE`,所以第一行不用帶參數。第二行的 1.0 是存檔母帶,不是交付物。
-**只留這兩個倍率** —— app 的倍速是疊在檔案之上的,交付 1.1 之後聽眾再選 1.2
-拿到的是 1.32,那是預期行為,不需要預先燒好每個倍率。
+一行指令做完:混音、正規化、`MIX.json`、`.wav`、128k AAC 的 `.m4a`
+(用內建的 `afconvert`,不需要再手動轉檔)。
 
-**加速必須在混音之前。** `--rate` 只拉伸人聲、停頓按比例縮短,音樂維持原速。
-WSOLA 靠找相似波形重疊接起來,拉伸語音很乾淨,拉伸音樂會打散週期性,
-產生顆粒感與節奏抖動。對混完的成品加速就是把音樂一起毀掉。
+**交付速度由 `brand.py` 的 `SHIP_RATE` 決定,中英各有預設,目前都是 1.0。**
+單集要不同就在 `meta.json` 加 `"ship_rate": 0.9`(或 `{"zh": 0.9}`);
+`assemble.py`、`shownotes.py`、`validate.py` 都從同一處取值,**不要自己帶 `--rate`**
+—— 帶了非交付速度的值只會產出試聽檔,不會寫 `MIX.json`。
+舊集數(ep001、ep002)的 `meta.json` 記著 `ship_rate: 1.1`。
 
-`assemble.py` 一次做完混音與正規化,輸出 44.1 kHz 單聲道、**-19 LUFS**、
-true peak ≤ **-1 dBTP**。所以**不需要再跑 master.py**;要單獨量用
-`master.py <檔> --measure`。留那 1 dB 是因為取樣點之間的波形更高,
-AAC 編碼會把它推上來 —— ep001 實測吃掉 0.2-0.4 dB。
+**加速必須在混音之前**(速度不是 1.0 時才相關)。`--rate` 只拉伸人聲、停頓按比例縮短,
+音樂維持原速。WSOLA 靠找相似波形重疊接起來,拉伸語音很乾淨,拉伸音樂會打散
+週期性,產生顆粒感。對混完的成品加速就是把音樂一起毀掉。
+
+輸出 44.1 kHz 單聲道、**-19 LUFS**、true peak ≤ **-1 dBTP**,所以**不需要再跑
+master.py**;要單獨量用 `master.py <檔> --measure`。留那 1 dB 是因為取樣點之間的波形更高,
+AAC 編碼會把它推上來,實測吃掉 0.2-0.4 dB。
 
 **兩版都要跑。** 兩版的原始響度不一樣(ep001:中文 -15.4、英文 -16.9),
 不正規化的話聽眾切換版本會感覺到音量跳動。英文版有時會停在 -19.05 而不是
 剛好 -19.00 —— 峰值天花板先到了,**保峰值優先,不要為此調高目標**。
 
 **轉場次數是算出來的,不要手填。** 約每 9 分鐘一次、下限 2 上限 5,
-由整集長度決定(ep001 29.6 分 → 3 次)。放哪幾個章節點是枚舉組合、取
+由整集長度決定(31 分 → 3 次)。放哪幾個章節點是枚舉組合、取
 「最長一段沒有標點的區間」最短的那一組。要覆寫才用 `--stings <n>`。
 
-產出:
+產出(都在 `out/<slug>/<lang>/`):
 
 | 檔案 | 用途 |
 |---|---|
-| `<slug>-<lang>.m4a` | **上傳用**(128k AAC,1.1x) |
-| `FULL_EPISODE_mixed_x1.1.wav` | 交付母帶,無損 |
-| `FULL_EPISODE_mixed.wav` | 1.0 存檔母帶,**不交付** |
-| `FULL_EPISODE.wav` | 純人聲,只用來試聽節奏 |
-| `MIX.json` | 交付速度那份的時間戳,show notes 讀它 |
+| `<slug>-<lang>.m4a` | **上傳用** |
+| `<slug>-<lang>.wav` | 交付母帶,無損,**給使用者在編輯器裡試聽** |
+| `MIX.json` | 時間戳,show notes 讀它 |
+| `FULL_EPISODE.wav` | 純人聲(stitch.py),只用來試聽節奏 |
+| `FULL_EPISODE_mixed_x<倍率>.wav` | 只有手動帶了非交付速度的 `--rate` 才有,試聽用,**不交付** |
 
-檔名容易搞混,**判準是有沒有 `_x1.1`**。沒有後綴的那個不是成品。
+**判準是檔名等於 `<slug>-<lang>`。** 其他都不是成品。
 
 ### 已知現象:Gemini 的輸出本來就觸頂
 
@@ -252,20 +296,26 @@ TTS 回傳的 PCM16 有少量樣本頂在滿刻度(ep001 中文版 69 段裡有 
 
 ## 步驟 9:show notes(兩版都要)
 
-先寫 `episodes/<slug>/meta.json`。六個欄位都是必要的,缺一個會 KeyError:
+先寫 `episodes/<slug>/meta.json`:
 
 ```json
 {
-  "number": 1,
-  "article": "mem0",
+  "number": 3,
+  "article": "wikiskill",
+  "category": "paper-intro",
+  "ship_rate": 1.0,
   "zh": { "title": "…", "summary": "…", "bullets": ["…", "…", "…"] },
   "en": { "title": "…", "summary": "…", "bullets": ["…", "…", "…"] }
 }
 ```
 
-`article` 是部落格文章的目錄名,用來組原文連結,**不是 slug** ——
-`ep001-mem0` 的 `article` 是 `mem0`。`number` 目前只印出來給上架時填,
-腳本不拿它做事,但要跟 slug 的編號一致。
+- `number`、`article`、要出的語言那一份 `title/summary/bullets` 是必要的。
+  **只出單一語言時,另一個語言的區塊可以省略**(`shownotes.py` 只讀要出的那個)。
+- `article` 是部落格文章的目錄名,用來組原文連結,**不是 slug** ——
+  `ep001-mem0` 的 `article` 是 `mem0`。`number` 只印出來給上架時填,要跟 slug 的編號一致。
+- `category` 是文章在部落格的上層目錄(`paper-intro`、`ai-concept`…),
+  省略時當作 `paper-intro`。
+- `ship_rate` 選填,省略就用 `brand.py` 的預設(見步驟 8)。
 
 ```bash
 uv run python pipeline/shownotes.py out/<slug>/zh
@@ -317,10 +367,6 @@ uv run python pipeline/shownotes.py out/<slug>/en
 3. **一個具體收穫,帶數字** —— 「只要 4 個動作」。數字讓抽象題目有了尺寸,
    而且暗示了節目的密度。
 
-> **這條規則改過。** 原本寫「論文名放後半」,理由是前幾個字最珍貴。
-> 前半句錯了:前幾個字確實最珍貴,但**最該放在那裡的就是論文名** ——
-> 那是搜尋時打的字。
-
 除了方括號裡的主關鍵字,標題裡還要有**一個範疇關鍵字**
 (ep001 是「AI Agent 長期記憶」)。主關鍵字接住已經知道這篇論文的人,
 範疇關鍵字接住只知道自己遇到什麼問題的人 —— 後者多得多。
@@ -369,10 +415,27 @@ ep001 的做法是直接從事實切入:「同一個團隊做了兩個版本,一
 
 這支腳本是**發布前的最後一道 gate**,音訊揭露不在就不產出檔案。
 
+## 步驟 10:收尾 —— 清乾淨,再講哪個是成品
+
+做完把**自己產生的實驗與暫存檔刪掉**,讓 repo 乾淨:
+
+- 包裝腳本、一次性測試腳本、`credits_before.json`、`tts_*.log` 之類
+- 重複的母帶(例如與 `<slug>-<lang>.wav` 內容相同的檔)
+- `.DS_Store`(根目錄的 `.gitignore` 已排除,但有就刪)
+
+**不要刪:** `out/<slug>/<lang>/b*.wav`(單段重骰要用)、`report.json`、`MIX.json`、
+`SHOWNOTES.md`,以及別人的集數與檔案。刪之前先 `ls` 看過每一個目標。
+最後 `git status` 應該只剩這一集該 commit 的東西(`episodes/<slug>/` 與有意修改的程式與文件)。
+**commit 要等使用者確認。**
+
 ## 交付時要告訴使用者
 
-**兩版分開講**:總長、通過率與平均相似度、**哪幾段需要他用耳朵確認以及為什麼**、
-實際花費、以及交付檔的路徑(那個 `.m4a`)。
+總結用中文,**兩版分開講**:
+- **最終交付檔是哪一個**:`.m4a`(上傳用)與 `.wav`(試聽用)的完整路徑、總長、響度
+- 合成通過率與平均相似度,**哪幾段需要他用耳朵確認以及為什麼**
+- **實際花費**(合成前後 credits 的差額)
+- **略過了什麼**:原文的疑慮與你因此沒講的地方(見步驟 1)
+- 過程中遇到的問題,以及 skill / CLAUDE.md 可以怎麼改進
 
 要他在手機上試聽就壓小一點發成 artifact:
 

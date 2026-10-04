@@ -9,16 +9,31 @@
 
 同一批測試句、同一把 STT 尺(`pipeline/verify.py`,測試句見 `docs/TTS-TEST-SUITE.md`):
 
-| 引擎 | 平均 sim | 價格/百萬字元 | 備註 |
+| 引擎 | 平均 sim | 價格/百萬字元(輸入) | 備註 |
 |---|---|---|---|
-| **Gemini 3.1 Flash TTS** | **0.990** | **$1** | |
+| **Gemini 3.1 Flash TTS** | **0.990** | **$1** | 見下方「⚠️ 真正的成本」 |
 | MiniMax speech-2.8-turbo | 0.986 | $60 | |
 | MiniMax speech-2.8-hd | 0.980 | $100 | |
 | Fish Audio s2-pro | 0.979 | $15 | **片段間音色不連貫** |
 | Breeze-TTS-2(本地) | 0.950 | 免費但**不可商用** | 用了 Johnny 的克隆音 |
 | Qwen Audio 3.0 TTS Flash | 0.930 | $15 | 語速僅 4.6 字/秒,大陸腔明顯 |
 
-一集 30 分鐘約 8,800 字元 = **US$0.012**。成本不是決策變數。
+### ⚠️ 真正的成本:輸出音訊才是大頭,不是輸入文字
+
+上表的「$1/百萬字元」只是輸入端。Gemini 3.1 Flash TTS Preview 的實際定價是
+輸入 **$1/百萬 token**、輸出 **$20/百萬 token**(`ai.google.dev/gemini-api/docs/pricing`)。
+24kHz 音訊輸出約每秒 25 個 token,成本幾乎完全由**生成的音訊長度**決定,
+跟輸入文字多寡無關:**約 US$0.03/分鐘音訊**。
+
+拿 OpenRouter `/api/v1/credits` 合成前後對帳的實測:
+
+| 集數 | 音訊長度 | 實際花費 |
+|---|---|---|
+| ep002 中文 | 2,285 秒 | US$1.1548 |
+| ep003 中文 | 約 31 分鐘 | US$0.956 |
+
+一集 30-40 分鐘音訊,US$1-1.5。這不影響選型結論 —— Gemini 的分數優勢夠大,
+而且相對於商業授權的四位數美金,這個成本依然便宜。
 
 ## 二、它讓正規化層縮水一半以上
 
@@ -44,15 +59,14 @@
 | `Qwen-3.5-9B` | 「**Quant 3.6**」、`27B`→「27**幣**」 |
 | `CLAUDE.md` | 「**cloud**.md」 |
 
-**NORMALIZATION.md 從 8 條縮到 3 條:R3(版本號)、R4(符號)、R5(連字號)。**
-R1、R6、R7、R8 對 Gemini 是多餘的。
-
-另外 **幽靈音完全消失** —— 那是 Breeze 獨有的病,不是通病。
+NORMALIZATION.md 因此只剩三類改寫:版本號與參數量、符號與科學記號、檔名。
 
 ## 三、風格控制:提示越短越好(反直覺)
 
-Gemini 沒有 `emotion` 之類的參數。控制方式是把指示寫進 `input` 前綴,
-**實測確認指示不會被唸出來**(轉錄裡一個字都沒有)。
+Gemini 沒有 `emotion` 之類的參數。控制方式是把指示寫進 `input` 前綴。
+**指示通常不會被唸出來,但偶爾會洩漏** —— ep003 的 `b21`(33 字提示配 120 字正文,
+比例沒問題)開頭就把整句提示唸了一遍。`verify.py` 會標「提示洩漏」,
+處理方式是刪掉該段 wav 重骰,不看語速。
 
 因為控制手段是文字而非參數,**走 OpenRouter 在語氣控制上零損失**。
 
@@ -140,7 +154,7 @@ Gemini 沒有 `emotion` 之類的參數。控制方式是把指示寫進 `input`
 > longer than a few minutes. We recommend splitting your transcripts into
 > smaller chunks."
 
-好消息是官方建議的做法(切小塊)正是我們的 beat 制度(PLAN.md §4.5)。
+好消息是官方建議的做法(切小塊)正是我們的 beat 制度。
 且預建音色是**固定的身分目標**,不像 Fish/BlueMagpie 每次從參考音檔重新推斷 ——
 後者正是「聽起來像不同人」的成因。
 
@@ -173,3 +187,33 @@ Google 的克隆在另一個產品(Cloud TTS 的 Chirp 3 Instant Custom Voice),
   `pipeline/tts.py` 內建重試 + 提示降級階梯。
 - 判斷成功不能只看 HTTP 200 —— 要檢查 body 長度(>2000 bytes)
   且 content-type 不是 JSON。
+- **網路層錯誤(逾時、斷線)要單獨 catch**,不能讓例外炸穿整支腳本 ——
+  30-40 分鐘的整集合成中途斷線機率不低,ep002 就中過兩次,
+  沒接住會讓已經花錢合成的段落白費,還得手動 `--resume`。
+
+## 七、⚠️ 「疑似幽靈音」有不小比例是 Whisper 自己編的,不是 TTS 講錯
+
+`verify.py` 的「疑似幽靈音」是「轉錄文字比預期長超過 1.15 倍」。這個判斷
+**不能直接當成 TTS 多講了話**。
+
+**根因:** mlx_audio 的 Whisper 預設 `temperature` 是 fallback tuple
+`(0.0, 0.2, …, 1.0)`。對音檔尾端訊噪比低、沒把握的片段,Whisper 會一直調高溫度
+重試,溫度高就是在取樣。同一份沒動過的 wav 連轉三次,得到三種完全不同的結尾
+(包含典型的 YouTube 片尾語「請不吝點讚訂閱轉發」),跟內容毫無關係。
+
+**修法**(已套用在 `verify.py`,三個參數缺一不可):
+
+```python
+stt.generate(path, language=lang, temperature=0.0,
+             condition_on_previous_text=False,
+             hallucination_silence_threshold=2.0)
+```
+
+套用後同一份 wav 重跑結果一致,幻聽尾巴從最長 183 字縮到穩定 7 字。
+
+**判斷規則:** 看 `chars_per_sec`。語速落在正常區間,代表音檔長度跟預期文字量對得上,
+尾端的幻覺文字再長也不是音檔真的多講 —— 幾百毫秒塞不下 100 多字,不用重骰。
+語速明顯偏慢或失控,才是音檔真的比預期長,重骰。
+
+**唯一的例外是「提示洩漏」**(見第三節):轉錄裡逐字出現風格提示的句子,
+一定是 TTS 的問題,不論語速。

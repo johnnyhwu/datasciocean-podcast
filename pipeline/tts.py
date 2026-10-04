@@ -87,11 +87,19 @@ def main():
         for lvl, stl in enumerate(ladder):
             body["input"] = (stl + "\n\n" + it["text"]) if stl else it["text"]
             for attempt in range(2):
-                r = requests.post(URL, headers={"Authorization": f"Bearer {key}",
-                                                "Content-Type": "application/json"},
-                                  json=body, timeout=300)
-                ok = (r.status_code == 200 and len(r.content) > 2000
-                      and not r.headers.get("content-type", "").startswith("application/json"))
+                try:
+                    r = requests.post(URL, headers={"Authorization": f"Bearer {key}",
+                                                    "Content-Type": "application/json"},
+                                      json=body, timeout=300)
+                    ok = (r.status_code == 200 and len(r.content) > 2000
+                          and not r.headers.get("content-type", "").startswith("application/json"))
+                except requests.exceptions.RequestException as e:
+                    # 網路層錯誤(逾時、連線被斷)不算合成失敗,是暫時性的 ——
+                    # 30-40 分鐘的整集合成中途斷線機率不低,直接讓例外炸穿
+                    # 會中斷整支腳本,跟本檔開頭「單段失敗會記錄後跳過,
+                    # 不會中斷整集」的承諾矛盾。當一次失敗重試,不進提示降級。
+                    print(f"    網路錯誤,重試中:{e.__class__.__name__}", flush=True)
+                    ok = False
                 if ok:
                     break
                 time.sleep(2)

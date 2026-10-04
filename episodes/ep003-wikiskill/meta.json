@@ -1,0 +1,16 @@
+{
+  "number": 3,
+  "article": "wikiskill",
+  "category": "paper-intro",
+  "zh": {
+    "title": "【WikiSkill】Agent Skill 自動演化多一層 wiki,進步 15 個百分點,但最想證明的那件事沒被證明?",
+    "summary": "同一個模型、同一批任務,只讓負責改 skill 的角色能翻一本跨輪累積的 wiki,平均分數就從 48.7% 跳到 63.7%;但讓做題的 agent 也去翻,結果反而變差。這集拆解 Google Research 與 Virginia Tech 的 WikiSkill:三層架構、四個角色怎麼分工,實驗哪些證據很硬,以及論文自己沒驗證的最大缺口。",
+    "bullets": [
+      "三層架構與四個角色:原始紀錄、wiki、skill 各自能改、能刪、能回滾到什麼程度",
+      "一個 skill 如何被 wiki 一步步塑造出來的真實案例(ALFWorld,從被拒絕的第一版到第四輪修改)",
+      "消融實驗的五個數字:提案員讀 wiki 加 15 個百分點,執行員讀 wiki 反而扣分,以及原因",
+      "論文最想主張的「結構化知識勝過扁平列表」,為什麼其實沒被消融實驗直接驗證",
+      "這是論文導讀與評論,不是實作教學,不會教你怎麼自己搭一套 WikiSkill"
+    ]
+  }
+}

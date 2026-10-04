@@ -12,7 +12,7 @@ import sys, json, difflib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from verify import spoken_form, detect_lang, SPEED
+from verify import spoken_form, detect_lang, leaks_prompt, SPEED
 
 
 def main():
@@ -36,6 +36,8 @@ def main():
         elif cps and cps < sp["low"]:    flags.append("偏慢")
         if new < 0.90:                   flags.append("STT差異大")
         if len(b) > len(a) * 1.15:       flags.append("疑似幽靈音")
+        if leaks_prompt(r.get("style", ""), b, a, lang):
+            flags.append("提示洩漏")
         if old != new:
             moved.append((r["id"], old, new))
         r["similarity"], r["flags"] = new, flags

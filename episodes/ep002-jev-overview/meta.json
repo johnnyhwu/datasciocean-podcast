@@ -1,0 +1,28 @@
+{
+  "number": 2,
+  "article": "jev-overview",
+  "ship_rate": 1.1,
+  "category": "ai-concept",
+  "zh": {
+    "title": "又一個號稱超越 GPT 的神話？聊聊 Jev 的 193 倍跑分是如何「精選」出來的",
+    "summary": "官方喊比前沿大模型快193.6倍、便宜444.6倍,而且不會產生幻覺。好幾組獨立團隊真的拿去實測,倍數卻掉到不到八分之一——但沒有一組抓到造假。這集把官方數字怎麼算出來的、四個混淆變因,還有背後那套叫RLCD的訓練方法,一次拆開講清楚。",
+    "bullets": [
+      "官方的193.6倍是怎麼精挑細選出來的,拆開之後真正的倍數是多少",
+      "「機率校準」是什麼,為什麼大模型講得越篤定,反而越可能是校準壞掉",
+      "四個混淆變因,一套可以拿去拆穿任何誇大benchmark的習慣",
+      "什麼任務適合用這種輕量模型、什麼任務碰都不要碰的一句話規則",
+      "這是拆解與評論,不是操作教學——不會教你怎麼串接Jev的API"
+    ]
+  },
+  "en": {
+    "title": "Another 'Beats GPT' Myth? How Jev's 193x Benchmark Was 'Curated'",
+    "summary": "TypeSafe AI's Jev claims 193.6x faster and 444.6x cheaper than frontier models, with no hallucinations. Independent teams tested it and the speedup dropped to less than an eighth of that claim — yet nobody caught it lying. This episode pulls apart how the headline number gets built, the four confounds hiding inside it, and the RLCD training method behind it.",
+    "bullets": [
+      "How the 193.6x headline number gets cherry-picked, and what it actually looks like once you strip that out",
+      "What calibrated probability means, and why a model that sounds more certain can be evidence it's less trustworthy",
+      "Four confounds, and a repeatable habit for deflating almost any inflated benchmark claim",
+      "A one-line rule for when a lightweight model like this is a great trade, and when it's a dangerous one",
+      "This is analysis, not a how-to — it won't walk you through integrating Jev's API"
+    ]
+  }
+}

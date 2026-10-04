@@ -1,0 +1,5 @@
+[submodule "blog"]
+	path = blog
+	url = https://github.com/johnnyhwu/johnnyhwu.github.io.git
+	branch = main
+	shallow = true

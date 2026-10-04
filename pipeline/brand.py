@@ -7,22 +7,34 @@
 中英是**兩個獨立節目**,不是同一個節目的兩種語言 —— RSS 的 <language>
 是節目層級的單一欄位,混語言會被 Apple 以「Incorrect Language」退件。
 """
+import json
 import re
+from pathlib import Path
 
 SITE = "https://datasciocean.com"
 
-# 交付的播放速度。**1.0 不是交付速度** —— Johnny 判斷 TTS 的原速偏慢,
-# 所以固定把「內容」加速到 1.1 倍,中英兩版一致。片頭、章節轉場、片尾
-# 維持原速(`assemble.py` 的 `--rate` 只拉伸人聲)。
+# 交付速度(人聲的播放倍率),各語言各有預設,單集可在 meta.json 用
+# `ship_rate` 覆寫(一個數字,或 {"zh": 1.1})。目前中英都是 1.0,不加速。
 #
-# 這個值有兩個下游後果,改它要一起處理:
-#   1. show notes 的章節時間戳來自這個速度的 `MIX.json`,拿 1.0 的來用會晚約 9%。
-#   2. 交付檔是 `FULL_EPISODE_mixed_x1.1.wav`,不是沒有後綴的那個。
-#      沒有後綴的是 1.0 存檔母帶。
+# 不是 1.0 時:`assemble.py` 只拉伸人聲,片頭、轉場、片尾維持原速;
+# 章節時間戳來自交付速度的 `MIX.json`。`assemble.py`、`shownotes.py`、
+# `validate.py` 都透過 `ship_rate()` 取值,所以改預設或覆寫不需要動別處。
 #
-# 不要為了「讓聽眾自己調」而改回 1.0:app 的倍速是疊在檔案本身之上的,
-# 交付 1.1 之後想聽 1.2 的人拿到的是 1.32,這是預期行為。
-SHIP_RATE = 1.1
+# app 的倍速是疊在檔案本身之上的:交付 1.1 之後想聽 1.2 的人拿到的是 1.32。
+SHIP_RATE = {"zh": 1.0, "en": 1.0}
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def ship_rate(lang: str, slug: str | None = None) -> float:
+    """這一集這個語言的交付速度:meta.json 的 ship_rate 優先,否則用 SHIP_RATE。"""
+    if slug:
+        meta = ROOT / "episodes" / slug / "meta.json"
+        if meta.exists():
+            r = json.loads(meta.read_text()).get("ship_rate")
+            r = r.get(lang) if isinstance(r, dict) else r
+            if r is not None:
+                return float(r)
+    return SHIP_RATE[lang]
 
 # 節目簡介 —— RSS 的節目層級欄位,也是上架平台填的那一段。
 # Johnny 自己寫的,不要改寫成比較「工整」的版本:開場從聽眾的焦慮切入、
@@ -68,13 +80,16 @@ SHOW = {
         "name": "DataSci Ocean",
         "language": "zh-TW",          # 不是 zh-CN,填錯會影響平台分類
         "site": SITE,
-        "post": SITE + "/paper-intro/{article}/",
+        # {category} 預設 paper-intro(舊集數 meta.json 沒有 category 欄位時的
+        # 相容值)。部落格的文章目錄不是全部都在 paper-intro 底下
+        # (例如 ai-concept/),meta.json 要填 category 才能組對原文連結。
+        "post": SITE + "/{category}/{article}/",
     },
     "en": {
         "name": "DataSci Ocean [English]",
         "language": "en",
         "site": SITE + "/en/",
-        "post": SITE + "/en/paper-intro/{article}/",
+        "post": SITE + "/en/{category}/{article}/",
     },
 }
 
