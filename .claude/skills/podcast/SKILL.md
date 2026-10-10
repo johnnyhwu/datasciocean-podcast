@@ -1,13 +1,15 @@
 ---
 name: podcast
-description: 把 Johnny 部落格的一篇技術文章做成完整的 podcast,中文版與英文版各一集。使用者說「我想把 XXX 文章轉成 podcast」「做一集 XXX」「做個英文版」時使用。涵蓋讀文章、寫 beats.json 逐字稿、Gemini TTS 合成、Whisper 驗證、混入片頭轉場片尾、輸出交付檔與 show notes。
+description: 把 Johnny 部落格的一篇技術文章做成完整的 podcast,預設只出中文版,英文版要使用者明講才做。使用者說「我想把 XXX 文章轉成 podcast」「做一集 XXX」「做個英文版」時使用。涵蓋讀文章、寫 beats.json 逐字稿、Gemini TTS 合成、Whisper 驗證、混入片頭轉場片尾、輸出交付檔與 show notes。
 ---
 
 # 製作一集 podcast
 
-**預設出中英兩版。** 使用者只講文章、沒指定語言時,就是兩版都要,
-而且**兩版都要跑完整的 validate 與 verify** —— 不要只驗中文那版。
-使用者若只要其中一版,他會明講。
+**預設只出中文版。** 使用者只講文章、沒指定語言時,只做中文;
+英文版要他明講才做(ep004 開工時照舊預設寫了英文稿並合成了一段,
+他才說「中文版就好」,白花了一段 TTS)。只出中文時,`meta.json` 只留 `zh` 區塊。
+要出兩版時,**兩版都要跑完整的 validate 與 verify** —— 不要只驗其中一版。
+下面各步驟標「兩版都要」的,意思是「有出的語言都要」。
 
 一集用一個 slug,格式是 `ep<三位數>-<短名>`(例如 `ep001-mem0`)。
 短名通常就是部落格文章的目錄名。
@@ -57,6 +59,9 @@ git submodule update --init --remote blog
 - 圖表裡的數字(`{{< image >}}` 的 `alt` 與 `caption` 常含關鍵數據)。
   **稿裡要念出來的關鍵數字,回頭對文章目錄裡的原圖**(表格 png 用 Read 就能看),
   圖說跟圖本身不一定一致
+- **原文寫的平均、百分比、排序這類衍生數字,用表格重算一次。** ep004 兩個
+  疑慮都是這樣抓到的:直接對話的「平均 +23.5」,用表一的 42 格重算只有約 +17.6;
+  圖 3 的說法跟圖本身相反。算不出來或對不上,就走下面「不放進 podcast」的處理
 - 作者自己的評論與質疑(這些是 `opinion` / `critique` beat 的素材)
 - 論文沒解釋、但你能推論的地方(這是最有價值的內容,但**必須標明是推論**)
 
@@ -213,6 +218,9 @@ uv run python pipeline/tts.py episodes/<slug>/zh.json out/<slug>/zh \
 
 - 69 段約需 **30-40 分鐘**,**背景啟動**(`nohup … &` 或 `run_in_background`),
   不要卡住對話。
+- **開跑前先查 credits。** `curl -s https://openrouter.ai/api/v1/credits -H "Authorization: Bearer $OPENROUTER_API_KEY"`,
+  剩餘額度 = `total_credits - total_usage`。**剩餘額度不足預估成本就先停下來提醒使用者,
+  不要直接開跑**,`--resume` 重跑也一樣。回報一行「剩餘 US$X,預估 US$Y」。
 - **成本:** 輸出音訊長度才是大頭,約 **US$0.03/分鐘音訊**,跟輸入文字多寡無關
   (為什麼見 `reference/GEMINI-TTS.md`)。開跑前先講估計(validate 第一行有),
   並用 `curl -s https://openrouter.ai/api/v1/credits -H "Authorization: Bearer $OPENROUTER_API_KEY"`
@@ -240,7 +248,7 @@ uv run python pipeline/verify.py out/<slug>/zh
 | 標記「**提示洩漏**」,或 `transcribed` 裡逐字出現風格提示(「請用台灣人的口音說話…」) | **一定是 TTS 把指示唸出來了**,不論位置(ep003 的 `b21` 出在開頭)、不論語速 —— **刪掉該段 wav,加 `--resume` 重跑**(沒有 seed,重跑就是重骰) |
 | 結尾冒出無關字詞(幽靈音),但 `chars_per_sec` 在正常區間 | **大機率是 Whisper 自己幻覺出來的,不是 TTS 講錯**——音檔長度跟預期文字量對得上,幾百毫秒塞不下那麼多亂碼字。見 `reference/GEMINI-TTS.md` 第五節。不用急著重骰 |
 | 結尾冒出無關字詞(幽靈音),而且 `chars_per_sec` 明顯偏慢或失控 | 這才是音檔真的比預期長,**刪掉該段 wav,加 `--resume` 重跑** |
-| 專有名詞唸錯 | 先重骰;連兩次都錯就改 beats.json 的寫法 |
+| 專有名詞唸錯 | 先重骰;連兩次都錯就改 beats.json 的寫法。**但先看各段:** 同一個名字有的段轉對、有的段轉錯(ep004 的 SkillOpt 被聽成 SkillUp、Scale-up,共 8 段,使用者聽過全部唸對),多半是 Whisper 誤聽,**先請使用者聽,不要急著重骰**,重骰結果通常一樣 |
 | 同音字差異(在/再、記/計) | **誤報,不用理** |
 | 簡繁、數字寫法差異 | **誤報**,比對時已正規化,還出現代表規則有漏 |
 | 英文數字詞 vs 阿拉伯數字、`arXiv` 轉成 "Archive" | **誤報**,verify.py 已折算 |
@@ -376,6 +384,8 @@ uv run python pipeline/shownotes.py out/<slug>/en
 「Agent Skill 自動演化多一層 wiki」每個詞都是黑話,「最想證明的那件事」是空的指涉。
 **這道關卡用冷讀驗證,不要靠自己判斷** —— 作者讀自己的稿子永遠覺得看得懂。
 流程、上限與 prompt 範本在 `reference/COLD-READ.md`,**預設要跑**。
+冷讀要開 subagent:**使用者說「做一集」就等於授權跑冷讀**(他明講,ep004),
+不用再問;他說「不要冷讀」才跳過。
 
 #### 標題的寫法
 
