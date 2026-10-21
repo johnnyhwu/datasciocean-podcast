@@ -36,6 +36,38 @@ LANG = {
 }
 
 
+# 聽眾不用解釋就懂的通俗詞(不分大小寫,前綴比對,所以 gpt 涵蓋 GPT-4o)。
+# 判準是「一般會用 ChatGPT 的人聽過」,不是「工程師都知道」。拿不準的詞不要
+# 放進來,留在清單裡讓寫稿的人判斷;真的拿不準就在合成前問 Johnny。
+# **Johnny 說某個詞可以不用解釋,就直接加進這裡**,不要之後再問同一個詞。
+COMMON_TERMS = ("ai", "gpt", "chatgpt", "llm", "gpu", "openai", "google",
+                "anthropic", "gemini", "claude", "deepseek", "llama", "qwen",
+                "podcast", "ok", "pdf", "datasci", "ocean", "johnny", "show", "notes")
+
+# 只算「要聽眾記住的數字」:阿拉伯數字、兩字以上的中文數字(四十七、二十五),
+# 以及勝敗倍成前面的數字。「一種」「三個」這種口語量詞與序數(第四站)不算。
+NUM_RE = re.compile(r"\d[\d,\.]*%?"
+                    r"|(?<!第)[零一二兩三四五六七八九十百千]{2,}(?!站)"
+                    r"|(?<!第)[一二兩三四五六七八九]+(?=[勝敗倍成])")
+MAX_NUMS_PER_BEAT = 3
+
+
+def first_terms(items):
+    """每個英文術語(連續英文詞視為一個詞組)第一次出現的 beat。回傳 [(term, beat_id)]。"""
+    seen, out = set(), []
+    for x in items:
+        for t in re.findall(r"[A-Za-z][A-Za-z0-9\-]*(?: [A-Za-z][A-Za-z0-9\-]*)*", x["text"]):
+            words = t.lower().split()
+            if all(w.startswith(COMMON_TERMS) or len(w) < 2 for w in words):
+                continue
+            k = t.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            out.append((t, x["id"]))
+    return out
+
+
 def norm(s):
     return re.sub(r"[,,。、!!??::;;()()「」『』\s—~]", "", s)
 
@@ -133,6 +165,23 @@ def check(items, lang):
     if len(ch) < 4:
         warns.append(f"只有 {len(ch)} 個 chapter 標記,show notes 的章節會太少;"
                      f"在主要的 signpost 段加 \"chapter\" 欄位(建議 6-10 個)")
+
+    # --- 術語首次出現(只提醒,不擋) ---
+    # 聽眾不能倒帶,英文術語第一次出現時若沒交代就等於丟掉他。這裡只能列出清單,
+    # 「有沒有定義」要靠人讀或稿子冷讀(COLD-READ.md);通俗詞已在 COMMON_TERMS 略過。
+    # 只有英文稿以外才檢查,英文稿裡全是英文詞,清單沒有意義。
+    if lang == "zh":
+        terms = first_terms(items)
+        if terms:
+            warns.append("英文術語首次出現,確認每個都已交代、通俗,或與主線無關就刪:"
+                         + "、".join(f"{t}@{b.split('_')[0]}" for t, b in terms))
+        # --- 數字密度 ---
+        dense = [x["id"] for x in items
+                 if x["role"] not in ("hook", "recap")
+                 and len(NUM_RE.findall(x["text"])) > MAX_NUMS_PER_BEAT]
+        if dense:
+            warns.append(f"單段數字超過 {MAX_NUMS_PER_BEAT} 個,聽眾記不住:"
+                         + ", ".join(dense) + " —— 只留要記的,其餘改成「大約七成」這類說法")
 
     c = collections.Counter(x["role"] for x in items)
     L = [len(x["text"]) for x in items]

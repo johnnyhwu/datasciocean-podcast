@@ -9,7 +9,7 @@
 
 ## 一句話流程
 
-文章 → beats.json(結構化逐字稿)→ `validate` 擋錯 → Gemini TTS 逐段合成 →
+文章 → beats.json(結構化逐字稿)→ `validate` 擋錯 → 稿子冷讀(抓沒交代的術語)→ Gemini TTS 逐段合成 →
 Whisper 回轉驗證 → 拼接加停頓 → (需要時)人聲變速 → 混入片頭/轉場/片尾 +
 響度正規化 → show notes。有出的語言各走一次,**每個語言都要驗證**。
 
@@ -44,11 +44,10 @@ pipeline/            十支檔案,就是整條流程。每支的檔頭註解就�
   brand.py           節目層級常數:名稱、網址、揭露措辭、簡介、各語言的交付速度
 .claude/skills/podcast/
   SKILL.md           做一集的完整步驟與指令
-  reference/         寫稿與調校的判準,**寫稿前必讀**。跟 skill 放在一起是因為
-                     它們是 skill 步驟 2 的前置條件,不是可以跳過的背景
+  reference/         寫稿與調校的判準,**寫稿前必讀**
     NARRATION.md     怎麼寫給只能用聽的聽眾(第十節專講英文版)
     NORMALIZATION.md 哪些詞要改寫、哪些不要
-    COLD-READ.md     新手冷讀測試:驗證 show notes 聽不聽得懂
+    COLD-READ.md     新手冷讀:合成前驗稿子、發布前驗 show notes 聽不聽得懂
     GEMINI-TTS.md    TTS 實測結論與已知陷阱
 blog/                部落格原文,git submodule(johnnyhwu.github.io 的 main,淺層)
 episodes/<slug>/     一集一個目錄,中英兩份 spec 放在一起
@@ -58,14 +57,10 @@ out/<slug>/{zh,en}/  該集的所有產出(gitignore)
 music/               片頭、轉場、片尾的成品(進版控,品牌資產)
                      source/ 是授權原曲,cut.py 可以重切
 thumbnail/           節目封面,中英共用。cover-3000.jpg 是上傳用的
-docs/                給人讀的,執行流程不需要
-  PLAN.md            原始規劃書。**只剩第七章(發布合規)與第九章(上線)還有用**
-  RESEARCH-HISTORY.md  TTS / STT 選型過程,含三次被推翻的判斷
-  MUSIC.md           音樂的選擇、裁切位置、授權存證、為什麼不鋪底 BGM
-  COVER-ART.md       封面的概念、prompt、縮圖驗收方式
-  TTS-VENDOR-SURVEY.md   商用 TTS 市場調查(Johnny 做的,已定案)
-  MUSIC-MODEL-SURVEY.md  自架音樂模型調查(Johnny 做的,**這條路已放棄**)
-  TTS-TEST-SUITE.md  中英夾雜測試集,換引擎時才需要
+docs/                給人讀的,執行流程不需要:選型過程與調查(`RESEARCH-HISTORY.md`、
+                     `TTS-VENDOR-SURVEY.md`、`MUSIC-MODEL-SURVEY.md`)、音樂與封面的決策
+                     (`MUSIC.md`、`COVER-ART.md`)、換引擎用的測試集(`TTS-TEST-SUITE.md`)。
+                     `PLAN.md` 是原始規劃書,**只剩第七章(發布合規)與第九章(上線)還有用**
 ```
 
 ## 定案的技術選擇(不要重新評估)
@@ -84,8 +79,8 @@ docs/                給人讀的,執行流程不需要
 - **不要用 `mlx-whisper` 套件** —— 它會拉進 torch 並要求 ffmpeg。
 - **不要考慮 Breeze-TTS-2** —— 權重非商業授權,podcast 一旦營利就違約。
 - **不要再試 voice cloning** —— 克隆傳得了音色、傳不了口音,三個引擎都證實過。
-- **不要重建 ACE-Step 環境** —— 自己生成音樂跑了五輪盲測,人耳否決,
-  29 GB 環境已整包刪除。理由與五個仍然有用的技術發現在 `docs/MUSIC.md` 最後一節。
+- **不要重建 ACE-Step 環境** —— 自己生成音樂跑了五輪盲測,人耳否決,環境已刪除。
+  理由與仍然有用的技術發現在 `docs/MUSIC.md` 最後一節。
 
 ## 中英兩版與開場
 
@@ -104,8 +99,8 @@ docs/                給人讀的,執行流程不需要
 
 1. **Single source of truth** —— beats.json 的 `text` 就是最終逐字稿,
    不要在下游再改寫。要改寫就改 beats.json 然後重新合成那一段。
-2. **Fail fast** —— 合成一集要 30 分鐘,所有能靠讀稿發現的問題
-   都必須在 `validate.py` 擋下來。
+2. **Fail fast** —— 合成一集要 30 分鐘,所有能靠讀稿發現的問題都必須在合成前擋下來:
+   確定性的交給 `validate.py`,需要判斷的(術語有沒有交代)交給稿子冷讀。
 3. **結構性約束優於 prompt** —— 不要在提示裡寫「請講得生動一點」,
    而是讓 schema 逼出變化(role 制度、連續解說上限、recap 下限)。
 4. **檢查點越早越好** —— 驗證在每一段合成後就做,不要等整集拼完。
@@ -117,12 +112,16 @@ docs/                給人讀的,執行流程不需要
   量測可以說明「為什麼」,不能推翻「好不好聽」 —— 音樂選型三輪都是這樣收斂的。
 - **預設一路做完**,只在花錢前(講預估成本)與全部完成後(總結)停下來;
   他說「逐步確認」才改成每步回報。背景合成**每 15 分鐘查一次進度**,他已授權。
-- 花錢的操作(TTS API)**先講預估成本再跑**,合成前後各查一次 OpenRouter credits 對帳。
-  一集約 US$1-1.5,成本由輸出音訊長度決定(細節見 skill 步驟 6)。
+  花錢的操作(TTS API)**先講預估成本再跑**,合成前後各查一次 OpenRouter credits 對帳
+  (成本與細節見 skill 步驟 6)。
 - **部落格原文自己有矛盾的地方,podcast 裡不講。** 我們只有原文、沒有論文全文,
   不替原文裁決;略過了什麼在總結裡列出。自己的推測可以講,但要明說是推測。
-- **show notes 要讓沒背景的新聽眾看得懂。** 標題、摘要、重點、章節標題都要過新手冷讀
-  (預設要跑,有上限,見 `reference/COLD-READ.md`);中文一律全形標點。
+- **新聽眾要聽得懂,稿子和 show notes 都是。** 合成前先做稿子冷讀,標題、摘要、
+  重點、章節標題也要過新手冷讀(預設要跑,有上限,見 `reference/COLD-READ.md`);
+  中文一律全形標點。
+- **術語:通俗的(GPT、LLM、GPU)不用解釋,你自己判斷;拿不準的合成前問他。**
+  不影響主線的術語直接刪,論文的主角術語不刪。數字整集只留要記的幾個。
+- **收尾自然像聊天**,講讀完的收穫或印象,每集形式不同,不套固定句型。
 - 做完要**清掉這次的實驗與暫存檔**,並明確告訴他最終交付檔是哪一個(skill 步驟 10)。
 - 給他比較用的東西就做成真的情境。片段脫離上下文聽不出差別,
   音樂是放進完整節目裡比才選得出來的。
