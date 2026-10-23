@@ -42,7 +42,8 @@ LANG = {
 # **Johnny 說某個詞可以不用解釋,就直接加進這裡**,不要之後再問同一個詞。
 COMMON_TERMS = ("ai", "gpt", "chatgpt", "llm", "gpu", "openai", "google",
                 "anthropic", "gemini", "claude", "deepseek", "llama", "qwen",
-                "podcast", "ok", "pdf", "datasci", "ocean", "johnny", "show", "notes")
+                "podcast", "ok", "pdf", "datasci", "ocean", "johnny", "show", "notes",
+                "bug", "github", "usb")
 
 # 只算「要聽眾記住的數字」:阿拉伯數字、兩字以上的中文數字(四十七、二十五),
 # 以及勝敗倍成前面的數字。「一種」「三個」這種口語量詞與序數(第四站)不算。
