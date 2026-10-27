@@ -70,7 +70,8 @@ def report_copy(m, article, lang):
     cut = TITLE_CUT[lang]
     if len(t) > cut:
         print(f"    列表只看得到:{t[:cut]}…")
-    if article.lower() not in t.lower():
+    # 目錄名用連字號(prompt-repetition),標題照慣例寫成帶空格的名稱,兩種都算有
+    if article.lower().replace("-", " ") not in t.lower().replace("-", " "):
         print(f"    ⚠ 標題裡沒有「{article}」—— 那是聽眾搜尋時會打的字,"
               f"而且應該擺在最前面")
 
