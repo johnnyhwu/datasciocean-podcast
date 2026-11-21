@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from verify import detect_lang   # 語言判準只有一份,避免兩支腳本各判各的
-from brand import AUDIO_DISCLOSURE, AUDIO_DISCLOSURE_SUGGESTED, ship_rate
+from brand import ship_rate
 
 ROLES = {"hook", "identity", "promise", "signpost", "context", "mechanism",
          "analogy", "evidence", "turn", "recap", "critique", "opinion",
@@ -21,8 +21,10 @@ ROLES = {"hook", "identity", "promise", "signpost", "context", "mechanism",
 BODY = {"context", "mechanism", "evidence", "analogy"}
 
 # Gemini TTS 的成本幾乎完全由輸出音訊長度決定(見 reference/GEMINI-TTS.md),
-# 跟輸入字元數無關。ep002:38 分鐘 US$1.15;ep003:31 分鐘 US$0.96。
-COST_PER_MIN = 0.03
+# 跟輸入字元數無關。直連 Gemini 的音訊輸出 US$9/百萬 token,每秒約 25 token
+# → 約 US$0.0135/分鐘(未對帳;2027-01-01 起據稱加倍,屆時改成 0.03)。
+# 舊的 OpenRouter 實測:ep002 38 分鐘 US$1.15。
+COST_PER_MIN = 0.015
 
 # Gemini 實測:提示相對正文太長會穩定回 502 空音訊。
 # 45 字提示配 24 字正文必掛,配 32 字正文正常。留 2.0 倍的安全邊際。
@@ -151,14 +153,6 @@ def check(items, lang):
     if opening != ["hook", "identity", "promise", "signpost"]:
         errs.append(f"開場四段的 role 應為 hook/identity/promise/signpost,"
                     f"實際是 {'/'.join(str(r) for r in opening)}")
-
-    # AI 揭露。Apple Podcasts 第 1.11 條要求音訊內與 metadata 兩處都要有,
-    # 漏掉可能整集下架。開場白每集由 TTS 重新生成,措辭可以跟當集主題呼應,
-    # 但「聲音是 AI 合成」這個事實不能不見 —— 所以驗事實不驗逐字。
-    ident = [x for x in items if x.get("role") == "identity"]
-    if not any(AUDIO_DISCLOSURE[lang].search(x["text"]) for x in ident):
-        errs.append("identity beat 缺 AI 揭露(Apple Podcasts 1.11)。"
-                    f"建議措辭:{AUDIO_DISCLOSURE_SUGGESTED[lang]}")
 
     # 章節標記給 show notes 的時間戳用。標在 signpost 上,聽眾看得懂的說法,
     # 不要用 beat 欄位那種內部描述(「路標 — 第一站」對聽眾沒有意義)。

@@ -1,12 +1,13 @@
-"""透過 OpenRouter 的 /audio/speech 逐段合成,輸出 pipeline/verify.py 吃得下的格式。
+"""逐段合成,輸出 pipeline/verify.py 吃得下的格式。
 
-OpenRouter 只接受 model / input / voice / response_format 四個欄位,
-**不支援** voice cloning、pronunciation_dict、emotion、speed、language_boost ——
+預設直連 Gemini interactions API,用 Johnny 自己的複製聲音
+(`voice_671rii51x0an`,2026-11-21 起全專案採用)。複製聲音綁在建立它的
+Google 專案上,只能直連,金鑰是 `.env` 的 `GEMINI_API_KEY`。
+`--provider openrouter` 是舊路徑(prebuilt voice 如 Zubenelgenubi),留著備用。
 語氣一律靠 spec 裡每段自己的 `style` 提示表達。
 
 用法:
     uv run python pipeline/tts.py episodes/<slug>/zh.json out/<slug>/zh \
-        --model google/gemini-3.1-flash-tts-preview --voice Zubenelgenubi --pcm \
         [--resume] [--only b00_hook,b01_identity]
 """
 import os, sys, re, json, time, argparse, subprocess, tempfile
@@ -17,7 +18,39 @@ for _l in (Path(__file__).parent.parent / ".env").read_text().splitlines():
 import requests, soundfile as sf
 
 URL = "https://openrouter.ai/api/v1/audio/speech"
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/interactions"
+DEFAULT_MODEL = "gemini-3.8-flash-tts"
+DEFAULT_VOICE = "voice_671rii51x0an"   # Johnny 的複製聲音
 SR = 24000   # Gemini TTS 的裸 PCM 就是這個取樣率,stitch.py 直接拼不轉換
+
+
+def post_gemini(text, style, voice, model, key):
+    """直連 Gemini interactions API。複製聲音(voice_… ID)只能走這條:
+    聲音綁在建立它的 Google 專案上,OpenRouter 不支援。風格提示放在
+    speech_metadata,不接在正文前面。回傳 (ok, 裸 PCM bytes)。
+    做法沿用 datasciocean-video 的 lib/tts_gemini.py(2026-11-10 實測)。"""
+    import base64, io, wave
+    content = {"type": "text", "text": text}
+    if style:
+        content["annotations"] = [{"type": "speech_metadata", "style": style}]
+    body = {"model": model, "input": [{"type": "user_input", "content": [content]}],
+            "response_format": {"type": "audio"},
+            "generation_config": {"speech_config": [{"voice": voice}]}}
+    r = requests.post(GEMINI_URL, headers={"x-goog-api-key": key,
+                                           "Content-Type": "application/json"},
+                      json=body, timeout=300)
+    if r.status_code != 200:
+        print(f"    HTTP {r.status_code}: {r.text[:200]}", flush=True)
+        return False, b""
+    res = r.json()
+    raw = b"".join(base64.b64decode(c["data"]) for st in res.get("steps", [])
+                   if st.get("type") == "model_output" for c in st.get("content", [])
+                   if c.get("type") == "audio" and c.get("data"))
+    if raw[:4] == b"RIFF":
+        with wave.open(io.BytesIO(raw)) as w:
+            assert w.getframerate() == SR and w.getnchannels() == 1
+            raw = w.readframes(w.getnframes())
+    return len(raw) > 2000, raw
 
 
 def to_wav(mp3: bytes, dst: Path):
@@ -32,16 +65,20 @@ def to_wav(mp3: bytes, dst: Path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("spec"); ap.add_argument("out")
-    ap.add_argument("--model", required=True)
-    ap.add_argument("--voice", default=None)
+    ap.add_argument("--model", default=DEFAULT_MODEL)
+    ap.add_argument("--voice", default=DEFAULT_VOICE)
     ap.add_argument("--only", default="")
     ap.add_argument("--resume", action="store_true",
                     help="已存在的 wav 直接沿用,只補缺的")
     ap.add_argument("--pcm", action="store_true",
                     help="模型只支援 pcm 時使用(例如 Gemini TTS)")
+    ap.add_argument("--provider", choices=["openrouter", "gemini"], default="gemini",
+                    help="gemini = 直連 Gemini(複製聲音必須走這條,金鑰 GEMINI_API_KEY)")
     a = ap.parse_args()
 
-    key = os.environ["OPENROUTER_API_KEY"]
+    key = os.environ["GEMINI_API_KEY" if a.provider == "gemini" else "OPENROUTER_API_KEY"]
+    if a.provider == "gemini":
+        a.pcm = True                             # interactions API 只回 PCM / WAV
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     items = json.loads(Path(a.spec).read_text())
     if a.only:
@@ -88,6 +125,12 @@ def main():
             body["input"] = (stl + "\n\n" + it["text"]) if stl else it["text"]
             for attempt in range(2):
                 try:
+                    if a.provider == "gemini":
+                        ok, pcm = post_gemini(it["text"], stl, v, a.model, key)
+                        if ok:
+                            break
+                        time.sleep(2)
+                        continue
                     r = requests.post(URL, headers={"Authorization": f"Bearer {key}",
                                                     "Content-Type": "application/json"},
                                       json=body, timeout=300)
@@ -115,7 +158,8 @@ def main():
         if a.pcm:
             # 裸 PCM 無檔頭:Gemini TTS 為 24kHz / 16-bit / 單聲道
             import numpy as np
-            sf.write(str(w), np.frombuffer(r.content, dtype="<i2"), SR)
+            sf.write(str(w), np.frombuffer(pcm if a.provider == "gemini" else r.content,
+                                           dtype="<i2"), SR)
         else:
             to_wav(r.content, w)
         arr, sr = sf.read(str(w))

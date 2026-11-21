@@ -1,6 +1,12 @@
 # Gemini TTS 實測筆記(2026-09-06)
 
-模型 `google/gemini-3.1-flash-tts-preview`,透過 OpenRouter `/api/v1/audio/speech`。
+> **2026-11-21 起改為直連 Gemini interactions API**(`gemini-3.8-flash-tts`,
+> Johnny 的複製聲音 `voice_671rii51x0an`),風格提示放在 `speech_metadata`
+> 而不是接在正文前面。下面是 OpenRouter + `gemini-3.1-flash-tts-preview` 時期的實測;
+> 成本數字已不適用,其餘陷阱(空音訊、鬼音尾巴、提示降級)仍要防。
+> 複製聲音的動態比 prebuilt 大,`assemble.py` 因此會削人聲的零星尖峰。
+
+原模型 `google/gemini-3.1-flash-tts-preview`,透過 OpenRouter `/api/v1/audio/speech`。
 所有結論都來自本專案的實測,不是文件轉述。
 
 ---

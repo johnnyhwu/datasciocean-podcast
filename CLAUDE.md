@@ -30,7 +30,7 @@ show notes 文案與冷讀(回饋可以回頭修稿)→ Gemini TTS 逐段合成 
   看到任何要 ffmpeg 的方案就換掉,不要「先裝一下」。
 - 模型權重放 `~/.cache/huggingface`(預設位置),讓其他專案共用。
   **選型定案後要刪掉落選的權重**,不然幾 GB 躺在那裡沒人知道能不能刪。
-- 金鑰放 `.env`(已 gitignore),腳本自動讀。需要 `OPENROUTER_API_KEY`。
+- 金鑰放 `.env`(已 gitignore),腳本自動讀。需要 `GEMINI_API_KEY`(直連 Gemini;OpenRouter 已不用)。
 
 ## 目錄
 
@@ -45,8 +45,8 @@ pipeline/            十支檔案,就是整條流程。每支的檔頭註解就�
                      交付速度預設 1.0x;變速在混音前做,只拉伸人聲
   master.py          BS.1770-4 響度量測與正規化(純 numpy,含 --measure)
   speedup.py         WSOLA 實作。assemble.py import 它,它的 CLI 是一次性用途
-  shownotes.py       show notes + 發布前的 AI 揭露 gate
-  brand.py           節目層級常數:名稱、網址、揭露措辭、簡介、各語言的交付速度
+  shownotes.py       show notes + 發布前的章節 gate
+  brand.py           節目層級常數:名稱、網址、簡介、各語言的交付速度
 .claude/skills/podcast/
   SKILL.md           做一集的完整步驟與指令
   reference/         寫稿與調校的判準,**寫稿前必讀**
@@ -72,8 +72,8 @@ docs/                給人讀的,執行流程不需要:選型過程與調查(`R
 
 | | 選擇 | 為什麼 |
 |---|---|---|
-| TTS | `google/gemini-3.1-flash-tts-preview`(走 OpenRouter) | 八個引擎實測分數最高,**$1/百萬字元**,比次便宜的低 15 倍 |
-| 音色 | `Zubenelgenubi` | 人耳挑選,中英共用 —— Gemini 的 prebuilt voice 與語言無關 |
+| TTS | `gemini-3.8-flash-tts`(直連 Gemini API,`GEMINI_API_KEY`) | Gemini 系列在八個引擎實測分數最高;複製聲音只能直連 |
+| 音色 | Johnny 的複製聲音 `voice_671rii51x0an` | 2026-11-21 他聽過 ep010 後定案,以後都用。舊的 prebuilt `Zubenelgenubi` 退役 |
 | STT | `openai/whisper-large-v3-turbo`(走 `mlx_audio`) | 輸出繁體、精度足夠、不需要 torch |
 | 音樂 | Jonas Blakewood / Presentation(Pixabay) | 三輪盲測。片頭/轉場/片尾同源,見 `docs/MUSIC.md` |
 | 響度 | -19 LUFS 單聲道、true peak ≤ -1 dBTP | -16 是**立體聲**的值。AAC 編碼會把峰值推上來,實測吃掉 0.2-0.4 dB |
@@ -83,7 +83,8 @@ docs/                給人讀的,執行流程不需要:選型過程與調查(`R
 
 - **不要用 `mlx-whisper` 套件** —— 它會拉進 torch 並要求 ffmpeg。
 - **不要考慮 Breeze-TTS-2** —— 權重非商業授權,podcast 一旦營利就違約。
-- **不要再試 voice cloning** —— 克隆傳得了音色、傳不了口音,三個引擎都證實過。
+- **不要再評估其他 voice cloning 引擎** —— 早期三個引擎都傳不了口音;
+  Gemini 的複製聲音(在 `datasciocean-video` 專案建的)是唯一過關的,已經定案。
 - **不要重建 ACE-Step 環境** —— 自己生成音樂跑了五輪盲測,人耳否決,環境已刪除。
   理由與仍然有用的技術發現在 `docs/MUSIC.md` 最後一節。
 
@@ -96,9 +97,9 @@ docs/                給人讀的,執行流程不需要:選型過程與調查(`R
 開場前四段是固定骨架,`validate.py` 會擋:`hook` → `identity` → `promise` → `signpost`
 (`b00_hook` 到 `b03_roadmap`),`b04` 起是正文。開場白每集由 TTS 重新生成,不用固定音檔。
 
-**AI 揭露是合規硬要求。** `b01_identity` 必須說出「聲音是 AI 合成」,措辭可以隨主題調整,
-事實不能不見。`validate.py`(合成前)與 `shownotes.py`(發布前)兩處都驗。
-**Apple Podcasts 第 1.11 條,漏掉可能整集下架。**
+**不提 AI 語音。** 節目用 Johnny 自己的複製聲音,音訊與 show notes 都不寫 AI 合成
+(2026-11-21 他的決定;目前只上 Spotify,Apple Podcasts 1.11 的風險他自己承擔)。
+不要自己加回去;要上 Apple Podcasts 前先跟他重新確認。
 
 ## 四個設計原則
 

@@ -61,6 +61,9 @@ def load(path, sr=SR):
     return x, loss
 
 
+VOICE_HEADROOM_DB = 17.5   # 人聲樣本峰值最多比積分響度高幾 dB,見 build()
+
+
 def gain_to(x, target_lufs, sr=SR):
     l = integrated_lufs(x, sr)
     return x * 10 ** ((target_lufs - l) / 20), l
@@ -72,7 +75,7 @@ def soft_limit(x, sr, ceiling, lookahead=0.005, release=0.06):
     為什麼需要它:曲庫的曲子峰值餘裕差很多(實測 11.5 到 19.9 dB)。把它們
     對齊到同一個積分響度之後,餘裕大的那首峰值會衝到 +4 dBTP,於是整個混音
     被等比壓下來近 2 dB —— 那會讓那首在盲測裡「聽起來比較小聲」,變成不公平
-    的比較。限幅只作用在音樂,人聲不碰(壓人聲會改變語氣)。
+    的比較。限幅主要用在音樂;人聲只削超過峰值餘裕的零星尖峰(見 build())。
 
     做法:取 |x| 的滑動最大值當偵測包絡,算出需要的增益衰減,再對衰減取
     前瞻區間的滑動最小值(讓增益在峰值抵達前就先降下來),最後單極平滑避免
@@ -158,6 +161,18 @@ def build(voice, intro=None, outro=None, sr=SR, music_rel=MUSIC_REL,
     """voice 已經是拼好的整段人聲。回傳 (成品, 資訊 dict)。"""
     v_lufs = integrated_lufs(voice, sr)
     info = {"voice_lufs": round(v_lufs, 2), "voice_s": round(len(voice) / sr, 2)}
+
+    # 人聲只削「少數尖峰」。-19 LUFS 配 -1 dBTP 只留 18 dB 的峰值餘裕;
+    # Johnny 的複製聲音動態比 prebuilt voice 大,零星幾個爆破音就超過,
+    # 結果整集被等比壓低約 0.9 dB(ep010 實測只到 -19.9)。這裡把超過
+    # 餘裕的樣本點用 5 ms 前瞻限幅壓下來,其餘時間增益是 1,語氣不受影響。
+    # 留 VOICE_HEADROOM_DB 而不是 18:樣本峰值會低估真峰值,AAC 還會再推高。
+    v_ceil_lim = 10 ** ((v_lufs + VOICE_HEADROOM_DB) / 20)
+    if float(np.max(np.abs(voice))) > v_ceil_lim:
+        lim = soft_limit(voice, sr, v_ceil_lim)
+        touched = np.abs(lim - voice) > 1e-4
+        info["voice_limited_pct"] = round(100 * float(touched.mean()), 3)
+        voice = lim
     canvas = np.zeros(0)
     v_at = 0
 
@@ -195,7 +210,8 @@ def build(voice, intro=None, outro=None, sr=SR, music_rel=MUSIC_REL,
                 true_peak=round(tp, 2))
     if verbose:
         print(f"  人聲 {info['voice_lufs']} LUFS / {info['voice_s']}s"
-              f" → 成品 {info['lufs']} LUFS / {info['true_peak']} dBTP / {info['total_s']}s")
+              f" → 成品 {info['lufs']} LUFS / {info['true_peak']} dBTP / {info['total_s']}s"
+              + (f"(人聲限幅 {info['voice_limited_pct']}% 樣本)" if "voice_limited_pct" in info else ""))
     return y, info
 
 

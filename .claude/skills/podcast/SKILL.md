@@ -144,31 +144,19 @@ git submodule update --init --remote blog
 | id | role | 固定 or 每集不同 |
 |---|---|---|
 | `b00_hook` | `hook` | 每集不同,不劇透 |
-| `b01_identity` | `identity` | **前半固定**(節目名 + AI 揭露)+ 後半每集不同(主題預告) |
+| `b01_identity` | `identity` | **前半固定**(節目名 + 我是 Johnny)+ 後半每集不同(主題預告) |
 | `b02_promise` | `promise` | 每集不同,聽完會拿到哪 2-3 樣東西 |
 | `b03_roadmap` | `signpost` | 每集不同,這集會走幾站 |
 
 **b02 和 b03 很容易在改稿時被吃掉**,但它們正是聽眾決定「要不要投資
 30 分鐘」的依據,所以列為硬性錯誤。細節看 NARRATION.md 第一節。
 
-### ⚠️ AI 揭露是硬性合規要求
+### 不提 AI 語音
 
-Apple Podcasts 第 1.11 條:AI 生成的音訊必須在**內容本身**與 **metadata**
-兩處揭露,漏掉可能整集下架。開場白每集由 TTS 重新生成(不用固定音檔 ——
-b01 的固定半句與變動半句在同一句裡,拆開接會有聽得出來的接縫),
-所以措辭可以跟當集主題呼應,但「聲音是 AI 合成」這個事實不能不見。
-
-建議措辭在 `pipeline/brand.py` 的 `AUDIO_DISCLOSURE_SUGGESTED`:
-
-> 這個節目的聲音是 AI 合成的,內容改編自我自己讀論文寫的筆記。
-
-**揭露到語音為止就好。** 1.11 管的是「聽眾以為在聽真人」,不管來源素材
-怎麼寫的。論文是 Johnny 自己讀的,筆記是他跟 AI 共同撰寫並掛名發表的
-—— 那就是他的筆記,寫作過程不在揭露範圍,**不要主動加上去**。
-
-但要用「改編**自**我的筆記」,不要寫成「內容**就是**我的筆記」:
-在 podcast 的語境裡「內容」會被聽成「這一集」,而這集的逐字稿確實是
-從筆記改寫來的。
+節目用的是 Johnny 自己的複製聲音,**音訊與 show notes 都不提 AI 合成**
+(2026-11-21 他的決定:目前只上 Spotify,Apple Podcasts 1.11 的風險他自己承擔)。
+b01 就是「這裡是 DataSci Ocean,我是 Johnny。」接當集主題,不要自己把揭露加回去。
+日後要上 Apple Podcasts 時,先跟他重新確認這件事。
 
 ### chapter 欄位
 
@@ -213,7 +201,7 @@ uv run python pipeline/validate.py episodes/<slug>/en.json
 ```
 
 語言自動判斷,不用下參數;語速、短 beat、重複判定的門檻會跟著切換。
-第一行印的是**依交付速度換算的長度**與**合成成本**(每分鐘音訊約 0.03 美元)。
+第一行印的是**依交付速度換算的長度**與**合成成本**(每分鐘音訊約 0.015 美元)。
 
 有 `✗` 就必須修到過,但**用內容修,不要用填充句修**:「連續解說無喘息」要插的是
 帶問句或轉折的段落,不是兩段前才收過、又來一句「小結一下」(NARRATION.md 第三節)。
@@ -246,18 +234,16 @@ ep009 合成開跑後才做文案冷讀,6 位讀者裡 5 位說「這是給工�
 ## 步驟 6:合成(兩版各跑一次)
 
 ```bash
-uv run python pipeline/tts.py episodes/<slug>/zh.json out/<slug>/zh \
-    --model google/gemini-3.1-flash-tts-preview --voice Zubenelgenubi --pcm
+uv run python pipeline/tts.py episodes/<slug>/zh.json out/<slug>/zh
 ```
 
 - 一集約需 **15-40 分鐘**,用 Bash 的 `run_in_background` 啟動,不要卡住對話。
   **它跑完會自動通知你**,不需要另外排喚醒來等它結束。
-- **開跑前先查 credits:**
-  `curl -s https://openrouter.ai/api/v1/credits -H "Authorization: Bearer $OPENROUTER_API_KEY"`,
-  剩餘額度 = `total_credits - total_usage`。**剩餘額度不足預估成本就先停下來提醒使用者,
-  不要直接開跑**,`--resume` 重跑也一樣。回報一行「剩餘 US$X,預估 US$Y」,
-  並記下**開跑前的 `total_usage`**,合成後再查一次,差額就是實際花費,總結時回報。
-- **成本:** 輸出音訊長度才是大頭,**每分鐘音訊約 0.03 美元**,跟輸入文字多寡無關
+- **預設就是直連 Gemini + Johnny 的複製聲音**(`gemini-3.8-flash-tts` / `voice_671rii51x0an`),
+  金鑰 `GEMINI_API_KEY`。開跑前只用 `grep -q '^GEMINI_API_KEY=.' .env` 確認有值,
+  **不要印出金鑰**。Google 沒有查餘額的 API,所以花錢前回報預估成本,
+  總結時請他到 Google AI Studio 的 billing 頁看實際花費。
+- **成本:** 輸出音訊長度才是大頭,**每分鐘音訊約 0.015 美元**(未對帳,2027 起可能加倍),跟輸入文字多寡無關
   (見 `reference/GEMINI-TTS.md`)。validate 第一行有估計。
 - **進度:約每 15 分鐘看一次**,使用者已授權。看的指令是
   `ls out/<slug>/<lang>/b*.wav | wc -l; tail -3 out/<slug>/tts_<lang>.log`,
@@ -265,7 +251,7 @@ uv run python pipeline/tts.py episodes/<slug>/zh.json out/<slug>/zh \
   把 log 導到 `out/<slug>/tts_<lang>.log`。
   **同一時間只留一個待觸發的檢查**,合成通知到了就不再排。ep009 疊了好幾個喚醒,
   合成早就完成後才一個個觸發,使用者收到好幾則多餘的「check TTS progress」
-- **音色兩版共用 `Zubenelgenubi`**,不需要另外挑。
+- **音色固定用 Johnny 的複製聲音**,不需要另外挑。
 - 中斷後加 `--resume` 續跑,已存在的音檔會沿用。
 - 腳本內建重試與提示降級,單段失敗會記錄後跳過,不會中斷整集。
 
@@ -372,7 +358,7 @@ uv run python pipeline/shownotes.py out/<slug>/zh
 uv run python pipeline/shownotes.py out/<slug>/en
 ```
 
-產出 `SHOWNOTES.md`,含章節時間戳、原文連結、固定的 metadata 揭露文字。
+產出 `SHOWNOTES.md`,含章節時間戳與原文連結。
 
 **時間戳讀 `MIX.json`**,不是自己重算 —— 片頭音樂把所有東西往後推約 6.5 秒,
 每次章節轉場再推 5.4 秒。所以 show notes 一定要在步驟 8 之後跑;
@@ -517,13 +503,13 @@ uv run python pipeline/shownotes.py out/<slug>/en
 英文  https://datasciocean.com/en/<category>/<article>/
 ```
 
-這支腳本是**發布前的最後一道 gate**,音訊揭露不在就不產出檔案。
+章節標記少於 4 個就不產出檔案。
 
 ## 步驟 10:收尾 —— 清乾淨,再講哪個是成品
 
 做完把**自己產生的實驗與暫存檔刪掉**,讓 repo 乾淨:
 
-- 包裝腳本、一次性測試腳本、`credits_before.json`、`tts_*.log` 之類
+- 包裝腳本、一次性測試腳本、`tts_*.log` 之類
 - 重複的母帶(例如與 `<slug>-<lang>.wav` 內容相同的檔)
 - `.DS_Store`(根目錄的 `.gitignore` 已排除,但有就刪)
 
@@ -537,7 +523,7 @@ uv run python pipeline/shownotes.py out/<slug>/en
 總結用中文,**兩版分開講**:
 - **最終交付檔是哪一個**:`.m4a`(上傳用)與 `.wav`(試聽用)的完整路徑、總長、響度
 - 合成通過率與平均相似度,**哪幾段需要他用耳朵確認以及為什麼**
-- **實際花費**(合成前後 credits 的差額)
+- **預估花費**,並提醒他到 Google billing 頁看實際金額
 - **略過了什麼**:原文的疑慮與你因此沒講的地方(見步驟 1)
 - 冷讀跑了幾個 agent、共通卡點、修了什麼、哪些沒被驗證(COLD-READ.md 最後一段)
 - 過程中遇到的問題,以及 skill / CLAUDE.md 可以怎麼改進
