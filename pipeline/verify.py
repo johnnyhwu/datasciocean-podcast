@@ -235,6 +235,62 @@ def leaks_prompt(style: str, got: str, expected: str, lang: str) -> bool:
         and st[m.a:m.a + m.size] not in expected
 
 
+# 節目名的每個英文字,每段都要聽得到(見 missing_names)。
+BRAND_NAMES = ("DataSci", "Ocean")
+
+
+def _name_heard(name: str, got: str, th: float = 0.6) -> bool:
+    """name 有沒有出現在轉錄裡。用模糊比對:Whisper 不認識自創名詞,
+    「JevAct」常被寫成「Jeff Act」,那是聽到了只是拼法不同,不該算漏。"""
+    import difflib
+    flat = re.sub(r"[^a-z0-9]", "", got.lower())
+    n = name.lower()
+    if n in flat:
+        return True
+    L = len(n)
+    return any(difflib.SequenceMatcher(None, n, flat[i:i + w]).ratio() >= th
+               for w in range(max(2, L - 2), L + 3)
+               for i in range(max(1, len(flat) - w + 1)))
+
+
+def names_in(text: str) -> list[str]:
+    """中文稿裡的英文專有名詞(三個字母以上)。英文稿每個字都是英文,不適用。"""
+    return list(dict.fromkeys(re.findall(r"[A-Za-z][A-Za-z0-9]{2,}", text)))
+
+
+def missing_names(text: str, got: str, lang: str) -> list[str]:
+    """逐段檢查:節目名有沒有被聽到。
+
+    整段相似度會把這種錯平均掉:ep010 的 b01 把「DataSci Ocean」念成
+    「DataShare」(Ocean 整個不見),整段 100 多字只差幾個字母,sim=0.918
+    照樣通過 —— 而那是聽眾聽到的第一句話。
+
+    只對節目名逐段嚴格:當集的自創名詞(JevAct、Kev)Whisper 本來就聽不準,
+    ep010 逐段查會標 19/59 段,篩選器就失效了。那些改看 name_report 的整集命中率。
+    """
+    if lang != "zh":
+        return []
+    return [n for n in names_in(text) if n in BRAND_NAMES and not _name_heard(n, got, 0.8)]
+
+
+def name_report(rows, lang: str):
+    """整集統計:每個英文專有名詞在幾段裡被 Whisper 聽到。
+    命中率低不一定是念錯(可能只是 Whisper 不認識),但代表要人耳確認念法 ——
+    ep010 的 Kev 只有約四成段落被聽到,那正是該找 Johnny 試聽的訊號。"""
+    if lang != "zh":
+        return []
+    stat = {}
+    for r in rows:
+        for n in names_in(r["text"]):
+            if n in BRAND_NAMES or "transcribed" not in r:
+                continue
+            h, tot, ids = stat.get(n, (0, 0, []))
+            ok = _name_heard(n, r["transcribed"])
+            stat[n] = (h + ok, tot + 1, ids + ([] if ok else [r["id"]]))
+    return sorted(((n, h, tot, ids) for n, (h, tot, ids) in stat.items()),
+                  key=lambda x: x[1] / x[2])
+
+
 def _load_stt():
     from mlx_audio.stt.utils import load_model
     print(f"載入 STT: {STT_MODEL}", flush=True)
@@ -291,8 +347,14 @@ def main():
         elif cps and cps < sp["low"]:    flags.append("偏慢")
         if ratio < 0.90:             flags.append("STT差異大")
         if len(b) > len(a) * 1.15:   flags.append("疑似幽靈音")
+        # 少一句比多一句難發現:ep010 第一版 b21 開頭整句沒唸,只能靠 sim 偏低間接看出。
+        # 正常段落的轉錄長度至少是稿子的 96%(ep010 實測),0.9 以下幾乎一定是漏唸。
+        if len(b) < len(a) * 0.90:   flags.append("疑似漏唸")
         if leaks_prompt(r.get("style", ""), b, a, lang):
             flags.append("提示洩漏")
+        miss = missing_names(r["text"], got, lang)
+        if miss:
+            flags.append("專有名詞沒聽到:" + "/".join(miss))
 
         mark = "○" if not flags else "⚠ " + ",".join(flags)
         print(f"[{i:2d}/{len(rows)}] {r['id']:26s} {cps:5.1f}{unit} sim={ratio:.3f} {mark}",
@@ -310,6 +372,12 @@ def main():
     bad = [r["id"] for r in out if r["flags"]]
     if bad:
         print("需要人耳確認:", ", ".join(bad))
+    low = [(n, h, tot, ids) for n, h, tot, ids in name_report(out, lang) if h / tot < 0.7]
+    if low:
+        print("\n專有名詞命中率偏低(要人耳確認念法,不一定是念錯):")
+        for n, h, tot, ids in low:
+            print(f"  {n:12s} {h}/{tot} 段聽得到   沒聽到:{', '.join(ids[:6])}"
+                  + (" …" if len(ids) > 6 else ""))
 
 
 if __name__ == "__main__":

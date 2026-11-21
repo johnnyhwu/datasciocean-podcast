@@ -74,6 +74,7 @@ docs/                給人讀的,執行流程不需要:選型過程與調查(`R
 |---|---|---|
 | TTS | `gemini-3.8-flash-tts`(直連 Gemini API,`GEMINI_API_KEY`) | Gemini 系列在八個引擎實測分數最高;複製聲音只能直連 |
 | 音色 | Johnny 的複製聲音 `voice_671rii51x0an` | 2026-11-21 他聽過 ep010 後定案,以後都用。舊的 prebuilt `Zubenelgenubi` 退役 |
+| show notes 文案 | Claude 寫(skill 步驟 5.6 / 9 的規則 + 冷讀) | ep010 試過讓 `gemini-3.8-flash` 照同一份規則寫,Johnny 比較後選 Claude 版;Gemini 還會寫出逐字稿沒講的細節 |
 | STT | `openai/whisper-large-v3-turbo`(走 `mlx_audio`) | 輸出繁體、精度足夠、不需要 torch |
 | 音樂 | Jonas Blakewood / Presentation(Pixabay) | 三輪盲測。片頭/轉場/片尾同源,見 `docs/MUSIC.md` |
 | 響度 | -19 LUFS 單聲道、true peak ≤ -1 dBTP | -16 是**立體聲**的值。AAC 編碼會把峰值推上來,實測吃掉 0.2-0.4 dB |
@@ -101,7 +102,7 @@ docs/                給人讀的,執行流程不需要:選型過程與調查(`R
 (2026-11-21 他的決定;目前只上 Spotify,Apple Podcasts 1.11 的風險他自己承擔)。
 不要自己加回去;要上 Apple Podcasts 前先跟他重新確認。
 
-## 四個設計原則
+## 五個設計原則
 
 1. **Single source of truth** —— beats.json 的 `text` 就是最終逐字稿,
    不要在下游再改寫。要改寫就改 beats.json 然後重新合成那一段。
@@ -110,6 +111,10 @@ docs/                給人讀的,執行流程不需要:選型過程與調查(`R
 3. **結構性約束優於 prompt** —— 不要在提示裡寫「請講得生動一點」,
    而是讓 schema 逼出變化(role 制度、連續解說上限、recap 下限)。
 4. **檢查點越早越好** —— 驗證在每一段合成後就做,不要等整集拼完。
+5. **平均分數會藏住關鍵的錯** —— 節目名、論文名這種短而關鍵的東西要逐一檢查,
+   不能靠整段相似度。ep010 開場的「DataSci Ocean」念糊了,整段 sim 0.918 照樣通過,
+   是 Johnny 自己聽前幾秒才發現。新增一種檢查時,也要先在舊集數上量誤報率,
+   標太多(第一版標了 31/59 段)跟沒標一樣沒用。
 
 ## 跟使用者互動
 

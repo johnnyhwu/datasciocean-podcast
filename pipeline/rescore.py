@@ -12,7 +12,7 @@ import sys, json, difflib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from verify import spoken_form, detect_lang, leaks_prompt, SPEED
+from verify import spoken_form, detect_lang, leaks_prompt, missing_names, SPEED
 
 
 def main():
@@ -36,8 +36,14 @@ def main():
         elif cps and cps < sp["low"]:    flags.append("偏慢")
         if new < 0.90:                   flags.append("STT差異大")
         if len(b) > len(a) * 1.15:       flags.append("疑似幽靈音")
+        # 少一句比多一句難發現:ep010 第一版 b21 開頭整句沒唸,只能靠 sim 偏低間接看出。
+        # 正常段落的轉錄長度至少是稿子的 96%(ep010 實測),0.9 以下幾乎一定是漏唸。
+        if len(b) < len(a) * 0.90:   flags.append("疑似漏唸")
         if leaks_prompt(r.get("style", ""), b, a, lang):
             flags.append("提示洩漏")
+        miss = missing_names(r["text"], r["transcribed"], lang)
+        if miss:
+            flags.append("專有名詞沒聽到:" + "/".join(miss))
         if old != new:
             moved.append((r["id"], old, new))
         r["similarity"], r["flags"] = new, flags
