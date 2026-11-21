@@ -156,6 +156,8 @@ git submodule update --init --remote blog
 節目用的是 Johnny 自己的複製聲音,**音訊與 show notes 都不提 AI 合成**
 (2026-11-21 他的決定:目前只上 Spotify,Apple Podcasts 1.11 的風險他自己承擔)。
 b01 就是「這裡是 DataSci Ocean,我是 Johnny。」接當集主題,不要自己把揭露加回去。
+**b01 的 `style` 後面要接 `brand.NAME_HINT`**(「DataSci Ocean」是節目名…分開念),
+不然複製聲音會把節目名念糊;validate 會擋。
 日後要上 Apple Podcasts 時,先跟他重新確認這件事。
 
 ### chapter 欄位

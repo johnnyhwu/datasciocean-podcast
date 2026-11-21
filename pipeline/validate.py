@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from verify import detect_lang   # 語言判準只有一份,避免兩支腳本各判各的
-from brand import ship_rate
+from brand import NAME_HINT, ship_rate
 
 ROLES = {"hook", "identity", "promise", "signpost", "context", "mechanism",
          "analogy", "evidence", "turn", "recap", "critique", "opinion",
@@ -153,6 +153,13 @@ def check(items, lang):
     if opening != ["hook", "identity", "promise", "signpost"]:
         errs.append(f"開場四段的 role 應為 hook/identity/promise/signpost,"
                     f"實際是 {'/'.join(str(r) for r in opening)}")
+
+    # 節目名念法(見 brand.NAME_HINT):不帶提示的話複製聲音會把節目名念糊。
+    if lang in NAME_HINT:
+        for x in items:
+            if x.get("role") == "identity" and "DataSci Ocean" in x["text"] \
+                    and NAME_HINT[lang] not in (x.get("style") or ""):
+                errs.append(f"{x['id']} 念到節目名,style 後面要接:{NAME_HINT[lang]}")
 
     # 章節標記給 show notes 的時間戳用。標在 signpost 上,聽眾看得懂的說法,
     # 不要用 beat 欄位那種內部描述(「路標 — 第一站」對聽眾沒有意義)。

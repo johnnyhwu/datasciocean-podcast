@@ -71,6 +71,12 @@ You don't have to stare at another PDF alone. This time someone's going down the
 I'm Johnny. Adapted from my own notes. Diagrams and code: https://datasciocean.com/en/""",
 }
 
+# 節目名的念法。複製聲音會把「DataSci Ocean」念糊(ep010 被 Whisper 聽成
+# 「DataShare」,Ocean 不見)。2026-11-21 試了重骰、加空格、拼音式拼法與加提示
+# 四種,Johnny 耳聽選了「加提示」:正文不動,在 identity 段的 style 後面接這句。
+# validate.py 會檢查 identity 段有沒有帶。
+NAME_HINT = {"zh": "「DataSci Ocean」是節目名，用英文清楚地念，Data 和 Sci 分開。"}
+
 SHOW = {
     "zh": {
         "name": "DataSci Ocean",
