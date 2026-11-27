@@ -81,7 +81,7 @@ git submodule update --init --remote blog
 ## 步驟 2:讀判準
 
 寫稿前**一定要讀**這個 skill 目錄底下的 `reference/NARRATION.md` 和
-`reference/NORMALIZATION.md`(絕對路徑:`.claude/skills/podcast/reference/`)。
+`reference/NORMALIZATION.md`(絕對路徑:`.agents/skills/podcast/reference/`)。
 要出英文版就再讀 NARRATION.md 的**第十節**(為什麼不能翻譯、門檻換算表)。
 做冷讀(步驟 5.5、5.6)前再讀 `reference/COLD-READ.md`。
 
@@ -536,7 +536,7 @@ uv run python pipeline/shownotes.py out/<slug>/en
 - **預估花費**,並提醒他到 Google billing 頁看實際金額
 - **略過了什麼**:原文的疑慮與你因此沒講的地方(見步驟 1)
 - 冷讀跑了幾個 agent、共通卡點、修了什麼、哪些沒被驗證(COLD-READ.md 最後一段)
-- 過程中遇到的問題,以及 skill / CLAUDE.md 可以怎麼改進
+- 過程中遇到的問題,以及 skill / AGENTS.md 可以怎麼改進
 
 要他在手機上試聽就壓小一點發成 artifact:
 

@@ -90,7 +90,7 @@ Gemini 沒有 `emotion` 之類的參數。控制方式是把指示寫進 `input`
 請用台灣人的口音說話,像台北的科技 podcast 主持人那樣。<role 語氣>
 ```
 
-全部控制在 40-50 字。14 個 role 各一句(中英文都有),見 `.claude/skills/podcast/SKILL.md` 的對照表。
+全部控制在 40-50 字。14 個 role 各一句(中英文都有),見 `.agents/skills/podcast/SKILL.md` 的對照表。
 
 ### 台灣腔
 
