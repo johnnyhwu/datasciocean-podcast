@@ -47,7 +47,7 @@ pipeline/            十支檔案,就是整條流程。每支的檔頭註解就�
   speedup.py         WSOLA 實作。assemble.py import 它,它的 CLI 是一次性用途
   shownotes.py       show notes + 發布前的章節 gate
   brand.py           節目層級常數:名稱、網址、簡介、各語言的交付速度
-.claude/skills/podcast/
+.agents/skills/podcast/
   SKILL.md           做一集的完整步驟與指令
   reference/         寫稿與調校的判準,**寫稿前必讀**
     NARRATION.md     怎麼寫給只能用聽的聽眾(第十節專講英文版)
@@ -74,7 +74,7 @@ docs/                給人讀的,執行流程不需要:選型過程與調查(`R
 |---|---|---|
 | TTS | `gemini-3.8-flash-tts`(直連 Gemini API,`GEMINI_API_KEY`) | Gemini 系列在八個引擎實測分數最高;複製聲音只能直連 |
 | 音色 | Johnny 的複製聲音 `voice_671rii51x0an` | 2026-11-21 他聽過 ep010 後定案,以後都用。舊的 prebuilt `Zubenelgenubi` 退役 |
-| show notes 文案 | Claude 寫(skill 步驟 5.6 / 9 的規則 + 冷讀) | ep010 試過讓 `gemini-3.8-flash` 照同一份規則寫,Johnny 比較後選 Claude 版;Gemini 還會寫出逐字稿沒講的細節 |
+| show notes 文案 | Agent 寫(skill 步驟 5.6 / 9 的規則 + 冷讀) | ep010 試過讓 `gemini-3.8-flash` 照同一份規則寫,Johnny 比較後選 Agent 版;Gemini 還會寫出逐字稿沒講的細節 |
 | STT | `openai/whisper-large-v3-turbo`(走 `mlx_audio`) | 輸出繁體、精度足夠、不需要 torch |
 | 音樂 | Jonas Blakewood / Presentation(Pixabay) | 三輪盲測。片頭/轉場/片尾同源,見 `docs/MUSIC.md` |
 | 響度 | -19 LUFS 單聲道、true peak ≤ -1 dBTP | -16 是**立體聲**的值。AAC 編碼會把峰值推上來,實測吃掉 0.2-0.4 dB |
